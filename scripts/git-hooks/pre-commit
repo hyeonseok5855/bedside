@@ -1,0 +1,38 @@
+#!/bin/sh
+# bedside pre-commit 훅 — 개인 데이터·시크릿 커밋 차단.
+#
+# 이 훅은 .gitignore를 우회한 실수(git add -f, 오타)를 마지막에 잡는 안전망이다.
+# 설치(저장소 루트에서 1회, clone마다 다시): git config core.hooksPath scripts/git-hooks
+# 오탐으로 확신할 때만: git commit --no-verify
+
+fail=0
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+
+# 1) 민감 경로/파일 차단
+blocked=$(printf '%s\n' "$staged" | grep -E '(^|/)personal/|(^|/)transcripts/|(^|/)secrets\.properties$|(^|/)local\.properties$|\.keystore$|\.jks$|\.p12$|(^|/)\.env$|\.diary\.md$')
+if [ -n "$blocked" ]; then
+  echo "거부: 개인 데이터/시크릿 파일이 스테이징됨"
+  printf '%s\n' "$blocked" | sed 's/^/  - /'
+  fail=1
+fi
+
+# 2) 고신뢰 시크릿 내용 차단 (Anthropic 키, PEM 개인키)
+if git diff --cached | grep -Eq 'sk-ant-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'; then
+  echo "거부: API 키 또는 개인키로 보이는 내용이 포함됨"
+  fail=1
+fi
+
+# 3) 자격증명형 할당 차단 (오탐이면 --no-verify)
+if git diff --cached | grep -Eiq '(api[_-]?key|client[_-]?secret|access[_-]?token|password)[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_/+.-]{16,}'; then
+  echo "거부: 자격증명처럼 보이는 값이 포함됨 (오탐이면 git commit --no-verify)"
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "개인 데이터는 /personal/ 아래에 두고 커밋하지 않는다. 키는 secrets.properties를 쓴다."
+  exit 1
+fi
+
+exit 0
