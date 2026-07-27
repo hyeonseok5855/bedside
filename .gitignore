@@ -1,0 +1,29 @@
+# 개인 데이터 — 절대 커밋 금지
+/personal/
+*.diary.md
+transcripts/
+
+# 시크릿
+local.properties
+secrets.properties
+*.keystore
+*.jks
+*.p12
+.env
+
+# Android / Gradle
+*.apk
+*.aab
+build/
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
