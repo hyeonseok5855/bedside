@@ -23,6 +23,8 @@ object Db {
         val factory = SupportOpenHelperFactory(DbKey.getOrCreate(context))
         return Room.databaseBuilder(context, BedsideDatabase::class.java, "bedside.db")
             .openHelperFactory(factory)
+            // 개발 단계: 스키마 변경 시 재생성 허용(아직 보존할 실데이터 없음).
+            .fallbackToDestructiveMigration()
             .build()
     }
 }

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Claude API 호출 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Health Connect 읽기 (v1 수집 소스: 수면·걸음·몸무게) -->
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
@@ -52,6 +55,11 @@
                 <action android:name="androidx.health.connect.action.HEALTH_CONNECT_PERMISSIONS" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ConversationActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- 지오펜스 전이(진입·이탈) 수신 -->
         <receiver
