@@ -32,6 +32,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
+import com.bedside.data.CollectedEvent
+import com.bedside.data.Db
 import com.bedside.health.HealthAvailability
 import com.bedside.health.HealthConnectReader
 import com.bedside.health.SleepSummary
@@ -125,6 +127,9 @@ private fun CollectScreen() {
         )
     }
     var geoStatus by remember { mutableStateOf("") }
+
+    var eventCount by remember { mutableStateOf(0) }
+    var events by remember { mutableStateOf<List<CollectedEvent>>(emptyList()) }
 
     val healthPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
@@ -343,6 +348,29 @@ private fun CollectScreen() {
         ) { Text("지오펜스 해제") }
 
         if (geoStatus.isNotEmpty()) Text(geoStatus)
+
+        // --- 저장(암호화 DB) ---
+        Button(
+            onClick = {
+                scope.launch {
+                    val dao = Db.get(context).events()
+                    eventCount = dao.count()
+                    events = dao.recent(20)
+                }
+            },
+        ) { Text("저장된 이벤트 보기") }
+
+        if (eventCount > 0) {
+            HorizontalDivider()
+            Text("저장된 이벤트 ${eventCount}개 (암호화 DB)")
+            events.forEach { e ->
+                Text(
+                    "· [${e.source}/${e.type}] ${e.label ?: ""} ${e.value ?: ""} — ${
+                        fmt.format(Instant.ofEpochMilli(e.occurredAt))
+                    }".replace("  ", " "),
+                )
+            }
+        }
 
         // --- 읽은 값 ---
         if (sleep != null || steps != null || weight != null || photoSummary != null) {

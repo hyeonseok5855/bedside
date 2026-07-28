@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 // 개인 위치 설정(집·회사)은 gitignore된 personal.properties에서만 읽는다.
@@ -73,5 +74,11 @@ dependencies {
 
     implementation(libs.androidx.health.connect.client)
     implementation(libs.play.services.location)
+
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.sqlcipher.android)
+
     implementation(libs.kotlinx.coroutines.android)
 }
