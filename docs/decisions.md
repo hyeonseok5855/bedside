@@ -393,6 +393,26 @@ diary-writer에 넣는 최근 일기 레퍼런스는 사용자가 고친 수정�
 트레이드오프: 공개 저장소라 실수 한 번이 곧 유출이다. 그래서 안전망을 훅까지
 3중으로 두는 것이 이 결정의 값어치다.
 
+## 27. 프로젝트 부트스트랩 — minSdk 26, compileSdk/target 36, AGP 8.9.1, Gradle 8.11.1
+
+- 날짜: 2026-07-28
+- 상태: 확정 (버전 실물은 `gradle/libs.versions.toml`)
+
+첫 코드(수면 읽기 스켈레톤)를 올리며 정한 빌드 기준.
+
+- **minSdk 26.** Health Connect connect-client의 하한이자, 대상 기기(S23+)보다
+  한참 아래라 여유롭다.
+- **compileSdk / targetSdk 36.** compileSdk 36은 선택이 아니라 강제였다 —
+  connect-client 1.1.0이 "36 이상으로 컴파일"을 요구하고, 그에 따라 **AGP 8.9.1
+  이상 + Gradle 8.11.1 이상**이 딸려온다. android-36·build-tools 36이 이미 깔려
+  있어 비용은 없었다.
+- **Kotlin 2.0 + Compose**, 의존성은 버전 카탈로그(`libs.versions.toml`)로 단일
+  관리. Android Studio 없이 Gradle CLI로 `assembleDebug`까지 확인.
+- 패키지/`applicationId`는 `com.bedside`, 디버그는 `.debug` 접미사.
+
+교훈 메모: Health Connect 같은 핵심 의존성이 SDK/AGP 하한을 끌어올린다. 라이브러리
+추가 전 이 하한을 먼저 확인한다(임의 추가 금지 규칙과도 연결 — `CLAUDE.md`).
+
 ---
 
 ## 참고 — 벤치마크한 것들
