@@ -5,6 +5,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -24,15 +25,16 @@ import java.time.temporal.ChronoUnit
  * 권한 요청 플로우(PermissionController 계약)는 Health Connect에 특화돼 있어
  * 화면 쪽에서 [permissions]를 직접 쓰게 둔다.
  */
-class HealthConnectReader(private val context: Context) : SleepReader, StepsReader {
+class HealthConnectReader(private val context: Context) : SleepReader, StepsReader, WeightReader {
 
     private val client: HealthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
     private val zone: ZoneId = ZoneId.systemDefault()
 
-    /** 화면에서 권한 요청 계약에 넘길 권한 집합(수면·걸음 읽기). */
+    /** 화면에서 권한 요청 계약에 넘길 권한 집합(수면·걸음·몸무게 읽기). */
     val permissions: Set<String> = setOf(
         HealthPermission.getReadPermission(SleepSessionRecord::class),
         HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(WeightRecord::class),
     )
 
     override fun availability(): HealthAvailability =
@@ -95,6 +97,21 @@ class HealthConnectReader(private val context: Context) : SleepReader, StepsRead
             )
         )
         return result[StepsRecord.COUNT_TOTAL]
+    }
+
+    override suspend fun readLatestWeight(reference: Instant): WeightSample? {
+        // 최근 1년 안에서 가장 최신 몸무게 한 건.
+        val windowStart = reference.minus(365, ChronoUnit.DAYS)
+        val latest = client.readRecords(
+            ReadRecordsRequest(
+                recordType = WeightRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(windowStart, reference),
+                ascendingOrder = false,
+                pageSize = 1,
+            )
+        ).records.firstOrNull() ?: return null
+
+        return WeightSample(time = latest.time, kilograms = latest.weight.inKilograms)
     }
 
     private fun isAsleep(stage: Int): Boolean = when (stage) {
