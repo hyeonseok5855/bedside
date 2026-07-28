@@ -1,0 +1,21 @@
+# 기본: 텍스트는 자동 판별, 저장소 내부는 LF로 정규화
+* text=auto eol=lf
+
+# Windows 배치 파일은 CRLF여야 한다
+*.bat text eol=crlf
+
+# 셸 스크립트/훅/gradlew는 반드시 LF (Git Bash에서 실행됨)
+*.sh text eol=lf
+gradlew text eol=lf
+scripts/git-hooks/* text eol=lf
+
+# 바이너리 — 정규화·diff 금지
+*.jar binary
+*.apk binary
+*.aab binary
+*.keystore binary
+*.jks binary
+*.p12 binary
+*.png binary
+*.jpg binary
+*.webp binary
