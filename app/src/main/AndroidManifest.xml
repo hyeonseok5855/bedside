@@ -5,6 +5,12 @@
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
 
+    <!-- 사진 메타데이터 읽기 (MediaStore). v1은 메타데이터만, 이미지 자체는 안 읽는다. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
     <!-- Health Connect 제공자(앱) 설치 여부를 조회하기 위한 package visibility -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
