@@ -32,6 +32,14 @@ val copyPrompts = tasks.register<Copy>("copyPrompts") {
 }
 tasks.named("preBuild") { dependsOn(copyPrompts) }
 
+// 개인 프로필(persona.md)을 앱 자산으로 복사한다. 원본은 gitignore된 personal/에만.
+// 없으면 복사할 게 없어 앱은 프로필 없이 동작한다(PersonaLoader가 빈 문자열 반환).
+val copyPersona = tasks.register<Copy>("copyPersona") {
+    from(rootProject.file("personal")) { include("persona.md") }
+    into(layout.projectDirectory.dir("src/main/assets/personal"))
+}
+tasks.named("preBuild") { dependsOn(copyPersona) }
+
 android {
     namespace = "com.bedside"
     compileSdk = 36

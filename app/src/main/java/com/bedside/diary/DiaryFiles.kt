@@ -14,9 +14,13 @@ object DiaryFiles {
         File(context.getExternalFilesDir(null), "Diary").apply { mkdirs() }
 
     private fun fileFor(context: Context, date: String): File = File(dir(context), "$date.md")
+    private fun moodFileFor(context: Context, date: String): File = File(dir(context), "$date.mood")
 
-    /** 일기 목록 항목: 날짜("yyyy-MM-dd")와 미리보기 한 줄. */
-    data class Entry(val date: String, val preview: String)
+    /** 일기 목록 항목: 날짜("yyyy-MM-dd") + 미리보기 한 줄 + 무드(없으면 null). */
+    data class Entry(val date: String, val preview: String, val mood: String? = null)
+
+    /** 검색 결과: 날짜 + 매치 주변 스니펫. */
+    data class Hit(val date: String, val snippet: String)
 
     fun save(context: Context, date: LocalDate, markdown: String): File {
         val file = fileFor(context, date.toString())
@@ -33,8 +37,43 @@ object DiaryFiles {
     fun list(context: Context): List<Entry> =
         dir(context).listFiles { f -> f.isFile && f.name.endsWith(".md") }
             ?.sortedByDescending { it.name }
-            ?.map { Entry(date = it.name.removeSuffix(".md"), preview = firstLine(it.readText())) }
+            ?.map {
+                val date = it.name.removeSuffix(".md")
+                Entry(date = date, preview = firstLine(it.readText()), mood = getMood(context, date))
+            }
             ?: emptyList()
+
+    // 무드는 일기 본문과 분리된 사이드카(.mood)에 단어 하나로. 본문엔 이모지·센서를 넣지
+    // 않는다는 규칙을 지키면서, 편집·회고·문체참조가 무드에 오염되지 않게 한다.
+    fun getMood(context: Context, date: String): String? =
+        moodFileFor(context, date).let { if (it.exists()) it.readText().trim().ifBlank { null } else null }
+
+    fun setMood(context: Context, date: String, mood: String?) {
+        val f = moodFileFor(context, date)
+        if (mood.isNullOrBlank()) { if (f.exists()) f.delete() } else f.writeText(mood.trim())
+    }
+
+    /** 본문 전문 검색(대소문자 무시). 최신순, 매치 주변 스니펫과 함께. */
+    fun search(context: Context, query: String): List<Hit> {
+        val q = query.trim()
+        if (q.isEmpty()) return emptyList()
+        return list(context).mapNotNull { entry ->
+            val body = read(context, entry.date)
+            val idx = body.indexOf(q, ignoreCase = true)
+            if (idx < 0) return@mapNotNull null
+            val from = (idx - 20).coerceAtLeast(0)
+            val to = (idx + q.length + 40).coerceAtMost(body.length)
+            val snippet = body.substring(from, to).replace("\n", " ").trim()
+            Hit(entry.date, (if (from > 0) "…" else "") + snippet + (if (to < body.length) "…" else ""))
+        }
+    }
+
+    /** [from, to] 구간(ISO 날짜 문자열, 포함)의 일기를 오래된 순으로. 회고용. */
+    fun bodiesInRange(context: Context, from: String, to: String): List<Pair<String, String>> =
+        list(context)
+            .filter { it.date in from..to }
+            .sortedBy { it.date }
+            .map { it.date to read(context, it.date) }
 
     /** 문체 레퍼런스용 최근 일기 본문(오늘 제외). 결정 23. */
     fun recentBodies(context: Context, excludeDate: String, limit: Int): List<String> =
