@@ -42,8 +42,11 @@ import com.bedside.data.Message
 import com.bedside.diary.Continuity
 import com.bedside.diary.DayBriefing
 import com.bedside.diary.DiaryFiles
+import com.bedside.diary.DiaryPhotos
+import com.bedside.media.MediaStorePhotoReader
 import com.bedside.ui.MoodPicker
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 
 /**
@@ -168,12 +171,19 @@ private fun ConversationScreen() {
                         append("\n--- 참고 ${i + 1} ---\n").append(body).append('\n')
                     }
                 }
+                // 오늘 사진을 삽입 후보로 넘긴다(결정 35). 권한 없으면 빈 목록.
+                val photoRefs = runCatching {
+                    MediaStorePhotoReader(context).readTodayPhotoRefs(Instant.now())
+                }.getOrDefault(emptyList())
+                val photoSection = DiaryPhotos.promptSection(photoRefs)
+
                 val md = AnthropicClient.complete(
                     task = Task.DIARY,
                     system = dw,
-                    messages = listOf(ChatMessage("user", "다음 대화를 바탕으로 오늘 일기를 써줘.\n\n$transcript$styleRef")),
+                    messages = listOf(ChatMessage("user", "다음 대화를 바탕으로 오늘 일기를 써줘.\n\n$transcript$styleRef$photoSection")),
                 )
-                DiaryFiles.save(context, today, md)
+                // ![](사진N) 자리표시자를 실제 사진 URI로 치환.
+                DiaryFiles.save(context, today, DiaryPhotos.resolve(md, photoRefs))
                 done = true
                 status = "오늘 일기를 저장했어요."
 

@@ -108,6 +108,8 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
 
+    implementation(libs.coil.compose) // 일기 속 장면 사진 렌더(결정 35)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.org.json) // 유닛 테스트 JVM에서 실물 org.json 사용
