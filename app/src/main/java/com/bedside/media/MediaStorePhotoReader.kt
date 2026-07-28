@@ -82,6 +82,40 @@ class MediaStorePhotoReader(private val context: Context) : PhotoReader {
             }
         }
 
+    override suspend fun readTodayPhotoRefs(reference: Instant, limit: Int): List<PhotoRef> =
+        withContext(Dispatchers.IO) {
+            val startOfDayMs = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+
+            val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+            } else {
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DATE_TAKEN,
+                MediaStore.Images.Media.DATE_ADDED,
+            )
+            val selection =
+                "${MediaStore.Images.Media.DATE_TAKEN} >= ? OR ${MediaStore.Images.Media.DATE_ADDED} >= ?"
+            val args = arrayOf(startOfDayMs.toString(), (startOfDayMs / 1000).toString())
+
+            val refs = mutableListOf<PhotoRef>()
+            context.contentResolver.query(collection, projection, selection, args, null)?.use { c ->
+                val idIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                val takenIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+                val addedIdx = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+                while (c.moveToNext()) {
+                    val takenMs = c.getLong(takenIdx)
+                    val ms = if (takenMs > 0) takenMs else c.getLong(addedIdx) * 1000
+                    if (ms < startOfDayMs) continue
+                    val itemUri = ContentUris.withAppendedId(collection, c.getLong(idIdx))
+                    refs += PhotoRef(uri = itemUri.toString(), time = Instant.ofEpochMilli(ms))
+                }
+            }
+            refs.sortedBy { it.time }.take(limit)
+        }
+
     private fun readLocation(itemUri: Uri): LatLng? = try {
         val readUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.setRequireOriginal(itemUri)

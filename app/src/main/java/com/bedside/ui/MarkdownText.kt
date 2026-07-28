@@ -4,9 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -14,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 
 /**
  * 아주 가벼운 마크다운 렌더. 일기·회고 열람에 공용으로 쓴다.
@@ -33,8 +38,19 @@ fun MarkdownText(markdown: String) {
                     Text(inline(line.removePrefix("## ")), style = MaterialTheme.typography.titleMedium)
                 line.startsWith("# ") ->
                     Text(inline(line.removePrefix("# ")), style = MaterialTheme.typography.titleLarge)
-                line.startsWith("![") ->
-                    Text("(사진)", style = MaterialTheme.typography.bodySmall)
+                line.startsWith("![") -> {
+                    val uri = imageUrl(line)
+                    if (uri != null) {
+                        AsyncImage(
+                            model = uri,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.FillWidth,
+                        )
+                    } else {
+                        Text("(사진)", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
                 line.startsWith("> ") ->
                     Text(inline(line.removePrefix("> ")), style = MaterialTheme.typography.bodyMedium)
                 line.startsWith("- ") || line.startsWith("* ") ->
@@ -47,6 +63,10 @@ fun MarkdownText(markdown: String) {
         }
     }
 }
+
+/** `![alt](url)`에서 url을 뽑는다. 비었거나 형식이 아니면 null. */
+private fun imageUrl(line: String): String? =
+    Regex("""!\[[^\]]*]\(([^)]+)\)""").find(line)?.groupValues?.get(1)?.trim()?.ifBlank { null }
 
 /** **굵게**만 처리하는 최소 인라인 파서. 나머지는 원문 그대로. */
 private fun inline(text: String): AnnotatedString = buildAnnotatedString {
