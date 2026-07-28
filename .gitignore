@@ -13,6 +13,9 @@ personal.properties
 *.p12
 .env
 
+# 생성물 (docs/prompts에서 복사됨 — 단일 출처는 docs/prompts)
+app/src/main/assets/prompts/
+
 # Android / Gradle
 *.apk
 *.aab

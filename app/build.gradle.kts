@@ -17,6 +17,21 @@ val personalProps = Properties().apply {
 fun personal(key: String, default: String = ""): String =
     personalProps.getProperty(key)?.trim() ?: default
 
+// API 키 등 시크릿도 gitignore된 secrets.properties에서만 읽는다(결정 18).
+val secretsProps = Properties().apply {
+    val f = rootProject.file("secrets.properties")
+    if (f.exists()) f.reader(Charsets.UTF_8).use { load(it) }
+}
+fun secret(key: String, default: String = ""): String =
+    secretsProps.getProperty(key)?.trim() ?: default
+
+// docs/prompts를 앱 자산으로 복사한다. 프롬프트 단일 출처는 docs/prompts (CLAUDE.md).
+val copyPrompts = tasks.register<Copy>("copyPrompts") {
+    from(rootProject.file("docs/prompts")) { include("*.md") }
+    into(layout.projectDirectory.dir("src/main/assets/prompts"))
+}
+tasks.named("preBuild") { dependsOn(copyPrompts) }
+
 android {
     namespace = "com.bedside"
     compileSdk = 36
@@ -36,6 +51,8 @@ android {
         buildConfigField("String", "WORK_ADDRESS", "\"${personal("work.address")}\"")
         buildConfigField("String", "WORK_LAT", "\"${personal("work.lat")}\"")
         buildConfigField("String", "WORK_LNG", "\"${personal("work.lng")}\"")
+
+        buildConfigField("String", "ANTHROPIC_API_KEY", "\"${secret("ANTHROPIC_API_KEY")}\"")
     }
 
     buildTypes {

@@ -184,6 +184,10 @@ private fun CollectScreen() {
         Text("Health Connect: ${availabilityText(availability)}")
         Text("상태: $status")
 
+        Button(
+            onClick = { context.startActivity(Intent(context, ConversationActivity::class.java)) },
+        ) { Text("오늘 밤 대화 시작") }
+
         // --- Health Connect: 수면·걸음·몸무게 ---
         Button(
             onClick = { healthPermissionLauncher.launch(health.permissions) },
