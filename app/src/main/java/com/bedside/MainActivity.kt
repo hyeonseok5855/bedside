@@ -35,6 +35,7 @@ import androidx.health.connect.client.PermissionController
 import com.bedside.health.HealthAvailability
 import com.bedside.health.HealthConnectReader
 import com.bedside.health.SleepSummary
+import com.bedside.health.WeightSample
 import com.bedside.media.MediaStorePhotoReader
 import com.bedside.media.PhotoSummary
 import kotlinx.coroutines.launch
@@ -45,7 +46,7 @@ import java.time.format.DateTimeFormatter
 /**
  * 수집 리더 확인용 스켈레톤 화면.
  *
- * 목적은 UI가 아니라 파이프라인 확인이다 — 각 수집 소스(수면·걸음·사진)를
+ * 목적은 UI가 아니라 파이프라인 확인이다 — 각 수집 소스(수면·걸음·몸무게·사진)를
  * 읽어오는 경로가 실제로 도는지 폰에서 눈으로 본다.
  */
 class MainActivity : ComponentActivity() {
@@ -76,18 +77,39 @@ private fun CollectScreen() {
     var healthGranted by remember { mutableStateOf(false) }
     var sleep by remember { mutableStateOf<SleepSummary?>(null) }
     var steps by remember { mutableStateOf<Long?>(null) }
+    var weight by remember { mutableStateOf<WeightSample?>(null) }
 
-    val mediaPermission = remember {
+    // 사진 읽기용(READ_MEDIA_IMAGES 또는 구버전 READ_EXTERNAL_STORAGE)
+    val readImagesPermission = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
     }
+    // 읽기 권한 + (29+) GPS용 ACCESS_MEDIA_LOCATION을 함께 요청
+    val mediaPermissions = remember {
+        buildList {
+            add(readImagesPermission)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+            }
+        }.toTypedArray()
+    }
     var photoGranted by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(context, mediaPermission) ==
+            ContextCompat.checkSelfPermission(context, readImagesPermission) ==
                 PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    // GPS(EXIF) 접근용. 29 미만은 별도 권한이 필요 없다.
+    var locationGranted by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_MEDIA_LOCATION,
+                ) == PackageManager.PERMISSION_GRANTED,
         )
     }
     var photoSummary by remember { mutableStateOf<PhotoSummary?>(null) }
@@ -100,10 +122,12 @@ private fun CollectScreen() {
     }
 
     val mediaPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { ok ->
-        photoGranted = ok
-        status = if (ok) "사진 권한 허용됨" else "사진 권한 거부됨"
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        photoGranted = result[readImagesPermission] == true
+        locationGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            result[Manifest.permission.ACCESS_MEDIA_LOCATION] == true
+        status = if (photoGranted) "사진 권한 허용됨" else "사진 권한 거부됨"
     }
 
     LaunchedEffect(Unit) {
@@ -123,11 +147,11 @@ private fun CollectScreen() {
         Text("Health Connect: ${availabilityText(availability)}")
         Text("상태: $status")
 
-        // --- Health Connect: 수면·걸음 ---
+        // --- Health Connect: 수면·걸음·몸무게 ---
         Button(
             onClick = { healthPermissionLauncher.launch(health.permissions) },
             enabled = availability == HealthAvailability.AVAILABLE && !healthGranted,
-        ) { Text("수면·걸음 읽기 권한 요청") }
+        ) { Text("수면·걸음·몸무게 권한 요청") }
 
         Button(
             onClick = {
@@ -161,11 +185,27 @@ private fun CollectScreen() {
             enabled = healthGranted,
         ) { Text("오늘 걸음 읽기") }
 
-        // --- MediaStore: 사진 메타데이터 ---
         Button(
-            onClick = { mediaPermissionLauncher.launch(mediaPermission) },
-            enabled = !photoGranted,
-        ) { Text("사진 권한 요청") }
+            onClick = {
+                scope.launch {
+                    status = "몸무게 읽는 중..."
+                    weight = try {
+                        health.readLatestWeight(Instant.now())
+                    } catch (t: Throwable) {
+                        status = "몸무게 오류: ${t.message}"
+                        return@launch
+                    }
+                    status = if (weight == null) "몸무게 기록 없음" else "몸무게 읽음"
+                }
+            },
+            enabled = healthGranted,
+        ) { Text("최근 몸무게 읽기") }
+
+        // --- MediaStore: 사진 메타데이터 + GPS ---
+        Button(
+            onClick = { mediaPermissionLauncher.launch(mediaPermissions) },
+            enabled = !(photoGranted && locationGranted),
+        ) { Text("사진·위치 권한 요청") }
 
         Button(
             onClick = {
@@ -183,11 +223,18 @@ private fun CollectScreen() {
             enabled = photoGranted,
         ) { Text("오늘 사진 읽기") }
 
-        if (sleep != null || steps != null || photoSummary != null) {
+        if (sleep != null || steps != null || weight != null || photoSummary != null) {
             HorizontalDivider()
             steps?.let { Text("오늘 걸음 ${it}보") }
+            weight?.let { Text("최근 몸무게 %.1fkg (%s)".format(it.kilograms, fmt.format(it.time))) }
             photoSummary?.let {
                 Text("오늘 사진 ${it.count}장 (${fmt.format(it.first)} ~ ${fmt.format(it.last)})")
+                val loc = it.firstLocation
+                if (loc != null) {
+                    Text("· 위치정보 ${it.locatedCount}장, 첫 위치 %.4f, %.4f".format(loc.lat, loc.lon))
+                } else {
+                    Text("· 위치정보 없음")
+                }
             }
             sleep?.let { SleepView(it, fmt) }
         }
