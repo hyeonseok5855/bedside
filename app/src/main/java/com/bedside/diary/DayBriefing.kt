@@ -1,6 +1,7 @@
 package com.bedside.diary
 
 import android.content.Context
+import com.bedside.data.CollectedEvent
 import com.bedside.data.Db
 import java.time.Instant
 import java.time.LocalDate
@@ -24,13 +25,18 @@ object DayBriefing {
 
         val events = Db.get(context).events().recent(200)
             .filter { it.occurredAt in start until end }
-            .sortedBy { it.occurredAt }
+        return render(events)
+    }
 
+    /**
+     * 이벤트 목록 → 브리핑 텍스트. DB/Android에 의존하지 않는 순수 함수라 단위 테스트한다.
+     * 시각순 정렬은 여기서 한다. 비어 있으면 통상 질문 안내를 돌려준다.
+     */
+    internal fun render(events: List<CollectedEvent>): String {
         if (events.isEmpty()) {
             return "오늘 수집된 데이터가 거의 없다. 통상적인 질문으로 편하게 시작하라."
         }
-
-        val lines = events.map { e ->
+        val lines = events.sortedBy { it.occurredAt }.map { e ->
             val t = timeFmt.format(Instant.ofEpochMilli(e.occurredAt))
             val what = when (e.source) {
                 "geofence" -> "${e.label ?: ""} ${if (e.type == "enter") "도착" else "이탈"}"
