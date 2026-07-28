@@ -36,6 +36,8 @@ import com.bedside.health.HealthAvailability
 import com.bedside.health.HealthConnectReader
 import com.bedside.health.SleepSummary
 import com.bedside.health.WeightSample
+import com.bedside.location.GeofenceManager
+import com.bedside.location.GeofencePlaces
 import com.bedside.media.MediaStorePhotoReader
 import com.bedside.media.PhotoSummary
 import kotlinx.coroutines.launch
@@ -46,8 +48,8 @@ import java.time.format.DateTimeFormatter
 /**
  * 수집 리더 확인용 스켈레톤 화면.
  *
- * 목적은 UI가 아니라 파이프라인 확인이다 — 각 수집 소스(수면·걸음·몸무게·사진)를
- * 읽어오는 경로가 실제로 도는지 폰에서 눈으로 본다.
+ * 목적은 UI가 아니라 파이프라인 확인이다 — 각 수집 소스(수면·걸음·몸무게·사진·
+ * 위치)를 읽어오는 경로가 실제로 도는지 폰에서 눈으로 본다.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,6 +69,7 @@ private fun CollectScreen() {
     val context = LocalContext.current
     val health = remember { HealthConnectReader(context) }
     val photos = remember { MediaStorePhotoReader(context) }
+    val geofences = remember { GeofenceManager(context) }
     val scope = rememberCoroutineScope()
     val fmt = remember {
         DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault())
@@ -79,7 +82,6 @@ private fun CollectScreen() {
     var steps by remember { mutableStateOf<Long?>(null) }
     var weight by remember { mutableStateOf<WeightSample?>(null) }
 
-    // 사진 읽기용(READ_MEDIA_IMAGES 또는 구버전 READ_EXTERNAL_STORAGE)
     val readImagesPermission = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
@@ -87,7 +89,6 @@ private fun CollectScreen() {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
     }
-    // 읽기 권한 + (29+) GPS용 ACCESS_MEDIA_LOCATION을 함께 요청
     val mediaPermissions = remember {
         buildList {
             add(readImagesPermission)
@@ -102,7 +103,6 @@ private fun CollectScreen() {
                 PackageManager.PERMISSION_GRANTED,
         )
     }
-    // GPS(EXIF) 접근용. 29 미만은 별도 권한이 필요 없다.
     var locationGranted by remember {
         mutableStateOf(
             Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
@@ -113,6 +113,18 @@ private fun CollectScreen() {
         )
     }
     var photoSummary by remember { mutableStateOf<PhotoSummary?>(null) }
+
+    // 위치/지오펜스
+    fun granted(p: String) =
+        ContextCompat.checkSelfPermission(context, p) == PackageManager.PERMISSION_GRANTED
+    var fineGranted by remember { mutableStateOf(granted(Manifest.permission.ACCESS_FINE_LOCATION)) }
+    var bgGranted by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                granted(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+        )
+    }
+    var geoStatus by remember { mutableStateOf("") }
 
     val healthPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
@@ -129,6 +141,22 @@ private fun CollectScreen() {
             result[Manifest.permission.ACCESS_MEDIA_LOCATION] == true
         status = if (photoGranted) "사진 권한 허용됨" else "사진 권한 거부됨"
     }
+
+    val fineLocationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        fineGranted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        status = if (fineGranted) "위치 권한 허용됨" else "위치 권한 거부됨"
+    }
+    val bgLocationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { ok ->
+        bgGranted = ok
+        status = if (ok) "백그라운드 위치 허용됨" else "백그라운드 위치는 설정에서 '항상 허용' 필요"
+    }
+    val notifLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { }
 
     LaunchedEffect(Unit) {
         if (availability == HealthAvailability.AVAILABLE) {
@@ -223,6 +251,100 @@ private fun CollectScreen() {
             enabled = photoGranted,
         ) { Text("오늘 사진 읽기") }
 
+        // --- 위치 / 지오펜스 ---
+        HorizontalDivider()
+        Text("위치 / 지오펜스", style = MaterialTheme.typography.titleMedium)
+
+        Button(
+            onClick = {
+                fineLocationLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                    ),
+                )
+            },
+            enabled = !fineGranted,
+        ) { Text("위치 권한 요청") }
+
+        Button(
+            onClick = { bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION) },
+            enabled = fineGranted && !bgGranted,
+        ) { Text("백그라운드 위치 허용(항상)") }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Button(
+                onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
+            ) { Text("알림 권한 요청") }
+        }
+
+        Button(
+            onClick = {
+                scope.launch {
+                    geoStatus = "현재 위치 잡는 중..."
+                    geoStatus = geofences.captureCurrentAs("work", GeofencePlaces.labelFor("work")).fold(
+                        onSuccess = { "회사 위치 저장됨: %.5f, %.5f".format(it.lat, it.lng) },
+                        onFailure = { "회사 위치 실패: ${it.message}" },
+                    )
+                }
+            },
+            enabled = fineGranted,
+        ) { Text("현재 위치를 회사로 설정") }
+
+        Button(
+            onClick = {
+                scope.launch {
+                    geoStatus = "현재 위치 잡는 중..."
+                    geoStatus = geofences.captureCurrentAs("home", GeofencePlaces.labelFor("home")).fold(
+                        onSuccess = { "집 위치 저장됨: %.5f, %.5f".format(it.lat, it.lng) },
+                        onFailure = { "집 위치 실패: ${it.message}" },
+                    )
+                }
+            },
+            enabled = fineGranted,
+        ) { Text("현재 위치를 집으로 설정") }
+
+        Button(
+            onClick = {
+                scope.launch {
+                    val places = GeofencePlaces.all
+                    if (places.isEmpty()) {
+                        geoStatus = "장소 설정 없음 (personal.properties 확인)"
+                        return@launch
+                    }
+                    geoStatus = "주소 해석 중..."
+                    val resolved = geofences.resolve(places)
+                    if (resolved.isEmpty()) {
+                        geoStatus = "주소 해석 실패 — personal.properties에 lat/lng 직접 입력 필요"
+                        return@launch
+                    }
+                    val coords = resolved.joinToString("\n") {
+                        "· ${it.label} %.5f, %.5f".format(it.lat, it.lng)
+                    }
+                    geoStatus = geofences.register(resolved).fold(
+                        onSuccess = { "지오펜스 ${it}개 등록됨 (반경 ${GeofencePlaces.RADIUS_METERS.toInt()}m)\n$coords" },
+                        onFailure = { "등록 실패: ${it.message}\n$coords" },
+                    )
+                }
+            },
+            enabled = fineGranted,
+        ) { Text("지오펜스 등록") }
+
+        Button(
+            onClick = {
+                scope.launch {
+                    geoStatus = geofences.clear().fold(
+                        onSuccess = { "지오펜스 해제됨" },
+                        onFailure = { "해제 실패: ${it.message}" },
+                    )
+                }
+            },
+            enabled = fineGranted,
+        ) { Text("지오펜스 해제") }
+
+        if (geoStatus.isNotEmpty()) Text(geoStatus)
+
+        // --- 읽은 값 ---
         if (sleep != null || steps != null || weight != null || photoSummary != null) {
             HorizontalDivider()
             steps?.let { Text("오늘 걸음 ${it}보") }

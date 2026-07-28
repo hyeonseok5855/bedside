@@ -10,7 +10,7 @@ fail=0
 staged=$(git diff --cached --name-only --diff-filter=ACM)
 
 # 1) 민감 경로/파일 차단
-blocked=$(printf '%s\n' "$staged" | grep -E '(^|/)personal/|(^|/)transcripts/|(^|/)secrets\.properties$|(^|/)local\.properties$|\.keystore$|\.jks$|\.p12$|(^|/)\.env$|\.diary\.md$')
+blocked=$(printf '%s\n' "$staged" | grep -E '(^|/)personal/|(^|/)transcripts/|(^|/)secrets\.properties$|(^|/)personal\.properties$|(^|/)local\.properties$|\.keystore$|\.jks$|\.p12$|(^|/)\.env$|\.diary\.md$')
 if [ -n "$blocked" ]; then
   echo "거부: 개인 데이터/시크릿 파일이 스테이징됨"
   printf '%s\n' "$blocked" | sed 's/^/  - /'

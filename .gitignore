@@ -6,6 +6,8 @@ transcripts/
 # 시크릿
 local.properties
 secrets.properties
+# 개인 위치 등 (집·회사 주소/좌표) — 절대 커밋 금지
+personal.properties
 *.keystore
 *.jks
 *.p12
