@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.bedside.ai.AnthropicClient
 import com.bedside.ai.ChatMessage
 import com.bedside.ai.PromptLoader
+import com.bedside.ai.Task
 import com.bedside.data.Db
 import com.bedside.data.Message
 import com.bedside.diary.DayBriefing
@@ -95,7 +96,7 @@ private fun ConversationScreen() {
             } else {
                 busy = true
                 status = "첫 질문 받는 중..."
-                val first = AnthropicClient.complete(systemPrompt, listOf(ChatMessage("user", KICKOFF)))
+                val first = AnthropicClient.complete(Task.CONVERSATION, systemPrompt, listOf(ChatMessage("user", KICKOFF)))
                 persist("assistant", first)
                 turns = listOf(ChatMessage("assistant", first))
                 status = ""
@@ -118,7 +119,7 @@ private fun ConversationScreen() {
             turns = turns + ChatMessage("user", text)
             try {
                 val apiMessages = listOf(ChatMessage("user", KICKOFF)) + turns
-                val reply = AnthropicClient.complete(systemPrompt, apiMessages)
+                val reply = AnthropicClient.complete(Task.CONVERSATION, systemPrompt, apiMessages)
                 persist("assistant", reply)
                 turns = turns + ChatMessage("assistant", reply)
             } catch (t: Throwable) {
@@ -140,9 +141,9 @@ private fun ConversationScreen() {
                     (if (it.role == "assistant") "상대" else "나") + ": " + it.text
                 }
                 val md = AnthropicClient.complete(
+                    task = Task.DIARY,
                     system = dw,
                     messages = listOf(ChatMessage("user", "다음 대화를 바탕으로 오늘 일기를 써줘.\n\n$transcript")),
-                    maxTokens = 2048,
                 )
                 val file = DiaryFiles.save(context, today, md)
                 diary = md
