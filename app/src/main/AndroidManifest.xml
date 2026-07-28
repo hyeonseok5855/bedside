@@ -22,6 +22,12 @@
     <!-- 진입·이탈 알림 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- 수집 서비스 (FGS) + 재부팅 재등록 + 배터리 최적화 예외 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- Health Connect 제공자(앱) 설치 여부를 조회하기 위한 package visibility -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
@@ -51,6 +57,25 @@
         <receiver
             android:name=".location.GeofenceBroadcastReceiver"
             android:exported="false" />
+
+        <!-- 수집 서비스 및 스케줄/부팅 리시버 -->
+        <service
+            android:name=".collect.CollectionService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <receiver
+            android:name=".collect.CollectionAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".collect.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Health Connect 권한 근거 화면 (Android 14+) -->
         <activity-alias

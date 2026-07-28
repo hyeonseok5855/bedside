@@ -1,9 +1,12 @@
 package com.bedside
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -32,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
+import com.bedside.collect.CollectionScheduler
 import com.bedside.data.CollectedEvent
 import com.bedside.data.Db
 import com.bedside.health.HealthAvailability
@@ -348,6 +352,23 @@ private fun CollectScreen() {
         ) { Text("지오펜스 해제") }
 
         if (geoStatus.isNotEmpty()) Text(geoStatus)
+
+        // --- 수집 서비스 ---
+        HorizontalDivider()
+        Text("수집 서비스", style = MaterialTheme.typography.titleMedium)
+        Button(onClick = { CollectionScheduler.start(context) }) {
+            Text("지금 수집 (서비스 시작)")
+        }
+        Button(
+            onClick = {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            },
+        ) { Text("배터리 최적화 예외 요청") }
 
         // --- 저장(암호화 DB) ---
         Button(
