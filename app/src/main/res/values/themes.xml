@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose가 실제 테마를 그린다. 이 XML 테마는 앱 창의 기본값만 잡는다.
+         밤 사용을 전제로 어두운 창 배경으로 시작한다(결정 19). -->
+    <style name="Theme.Bedside" parent="android:Theme.Material.NoActionBar" />
+</resources>
