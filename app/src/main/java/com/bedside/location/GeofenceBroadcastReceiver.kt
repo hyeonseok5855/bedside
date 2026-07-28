@@ -12,8 +12,13 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.bedside.data.CollectedEvent
+import com.bedside.data.Db
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * 지오펜스 진입·이탈 수신. 지금은 로그 + 알림으로 확인만 한다.
@@ -40,6 +45,40 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         val loc = event.triggeringLocation
         Log.i(TAG, "지오펜스: $text @ ${loc?.latitude},${loc?.longitude}")
         notify(context, text)
+        persist(context, event, kind, places, loc?.latitude, loc?.longitude)
+    }
+
+    /** 브로드캐스트가 죽기 전에 암호화 DB에 이벤트를 적립한다. */
+    private fun persist(
+        context: Context,
+        event: com.google.android.gms.location.GeofencingEvent,
+        kind: String,
+        label: String,
+        lat: Double?,
+        lng: Double?,
+    ) {
+        val now = System.currentTimeMillis()
+        val occurredAt = event.triggeringLocation?.time ?: now
+        val value = if (lat != null && lng != null) "$lat,$lng" else null
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Db.get(context).events().insert(
+                    CollectedEvent(
+                        source = "geofence",
+                        type = if (kind == "도착") "enter" else "exit",
+                        label = label,
+                        value = value,
+                        occurredAt = occurredAt,
+                        recordedAt = now,
+                    ),
+                )
+            } catch (t: Throwable) {
+                Log.w(TAG, "이벤트 적립 실패: ${t.message}")
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     private fun notify(context: Context, text: String) {
