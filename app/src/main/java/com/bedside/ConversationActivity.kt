@@ -33,12 +33,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.bedside.ai.AnthropicClient
 import com.bedside.ai.ChatMessage
+import com.bedside.ai.PersonaLoader
+import com.bedside.ai.PersonaMemory
 import com.bedside.ai.PromptLoader
 import com.bedside.ai.Task
 import com.bedside.data.Db
 import com.bedside.data.Message
+import com.bedside.diary.Continuity
 import com.bedside.diary.DayBriefing
 import com.bedside.diary.DiaryFiles
+import com.bedside.ui.MoodPicker
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -77,6 +81,7 @@ private fun ConversationScreen() {
     var status by remember { mutableStateOf("준비 중...") }
     var writing by remember { mutableStateOf(false) }
     var done by remember { mutableStateOf(false) }
+    var mood by remember { mutableStateOf<String?>(null) }
 
     suspend fun persist(role: String, text: String) {
         Db.get(context).messages().insert(
@@ -87,8 +92,15 @@ private fun ConversationScreen() {
     LaunchedEffect(Unit) {
         try {
             val interviewer = PromptLoader.interviewer(context)
+            val persona = PersonaLoader.load(context)
+            val continuity = Continuity.build(context, today)
             val briefing = DayBriefing.build(context, today)
-            systemPrompt = interviewer + "\n\n# 오늘 브리핑\n" + briefing
+            systemPrompt = buildString {
+                append(interviewer)
+                if (persona.isNotBlank()) append("\n\n").append(persona)
+                if (continuity.isNotBlank()) append("\n\n").append(continuity)
+                append("\n\n# 오늘 브리핑\n").append(briefing)
+            }
 
             val stored = Db.get(context).messages().forSession(dateStr)
                 .map { ChatMessage(it.role, it.text) }
@@ -164,6 +176,21 @@ private fun ConversationScreen() {
                 DiaryFiles.save(context, today, md)
                 done = true
                 status = "오늘 일기를 저장했어요."
+
+                // 앱이 라이징을 더 알아가게: 이 대화에서 새로 드러난 '오래 갈 사실'만 추려 저장.
+                // 일시적 감정·그날 사건은 제외. 실패해도 일기 저장에는 영향 없음.
+                try {
+                    val facts = AnthropicClient.complete(
+                        task = Task.CONVERSATION,
+                        system = "다음 대화에서 라이징에 대해 새로 알게 된, 앞으로도 오래 유지될 사실만 " +
+                            "최대 3개, 각 줄 '- '로 뽑아라. 취향·습관·관계·목표처럼 지속되는 것만. " +
+                            "일시적 감정이나 그날 하루 사건은 넣지 마라. 새로 알게 된 게 없으면 '없음'만 출력.",
+                        messages = listOf(ChatMessage("user", transcript)),
+                    )
+                    PersonaMemory.append(context, facts.lines())
+                } catch (_: Throwable) {
+                    // 학습 실패는 조용히 무시
+                }
             } catch (t: Throwable) {
                 status = "일기 오류: ${t.message}"
             } finally {
@@ -192,6 +219,11 @@ private fun ConversationScreen() {
         }
 
         if (done) {
+            Text("오늘 기분은?", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+            MoodPicker(selected = mood) { picked ->
+                mood = picked
+                DiaryFiles.setMood(context, dateStr, picked)
+            }
             Button(
                 onClick = {
                     context.startActivity(

@@ -12,6 +12,7 @@ object PromptLoader {
 
     fun interviewer(context: Context): String = fencedBlock(read(context, "interviewer.md"))
     fun diaryWriter(context: Context): String = fencedBlock(read(context, "diary-writer.md"))
+    fun reviewWriter(context: Context): String = fencedBlock(read(context, "review-writer.md"))
 
     private fun read(context: Context, name: String): String =
         context.assets.open("prompts/$name").bufferedReader().use { it.readText() }

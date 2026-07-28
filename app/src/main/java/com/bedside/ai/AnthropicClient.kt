@@ -16,7 +16,7 @@ data class ChatMessage(val role: String, val text: String)
  * - CONVERSATION: 속도 우선. thinking 끄고 effort 낮게.
  * - DIARY: 깊은 사고 우선. adaptive thinking + 높은 effort, 시간이 걸려도 됨.
  */
-enum class Task { CONVERSATION, DIARY }
+enum class Task { CONVERSATION, DIARY, REVIEW }
 
 /**
  * Claude Messages API 클라이언트 (텍스트, 비스트리밍).
@@ -55,6 +55,14 @@ object AnthropicClient {
         Task.DIARY -> Profile(
             model = "claude-opus-4-8",
             maxTokens = 8192, // thinking이 토큰을 먹으므로 넉넉히
+            thinking = "adaptive",
+            effort = "high",
+            readTimeoutMs = 120_000,
+        )
+        // 주간/월간 회고: 여러 일기를 가로질러 흐름·패턴을 읽는다. 일기와 같은 깊은 프로필.
+        Task.REVIEW -> Profile(
+            model = "claude-opus-4-8",
+            maxTokens = 8192,
             thinking = "adaptive",
             effort = "high",
             readTimeoutMs = 120_000,

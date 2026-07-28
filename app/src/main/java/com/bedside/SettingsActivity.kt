@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -179,6 +180,30 @@ private fun SettingsScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("설정 · 수집", style = MaterialTheme.typography.titleLarge)
+
+        // --- 앱 잠금 (민감 데이터 보호) ---
+        var appLock by remember { mutableStateOf(AppLock.enabled(context)) }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("앱 잠금", style = MaterialTheme.typography.titleSmall)
+                Text("열 때 기기 잠금(PIN·지문)으로 확인", style = MaterialTheme.typography.bodySmall)
+            }
+            androidx.compose.material3.Switch(
+                checked = appLock,
+                onCheckedChange = { on ->
+                    val km = context.getSystemService(android.app.KeyguardManager::class.java)
+                    if (on && (km == null || !km.isDeviceSecure)) {
+                        status = "기기에 잠금(PIN·지문)이 없어요. 먼저 기기 잠금을 설정하세요."
+                    } else {
+                        appLock = on
+                        AppLock.setEnabled(context, on)
+                        if (!on) AppLock.unlocked = true
+                    }
+                },
+            )
+        }
+        HorizontalDivider()
+
         Text("Health Connect: ${availabilityText(availability)}")
         Text("상태: $status")
 

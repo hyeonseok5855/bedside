@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.bedside.diary.DiaryFiles
+import com.bedside.ui.MarkdownText
+import com.bedside.ui.MoodPicker
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -69,6 +70,7 @@ private fun DiaryViewerScreen(date: String) {
     var text by remember { mutableStateOf(DiaryFiles.read(context, date)) }
     var editing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf(text) }
+    var mood by remember { mutableStateOf(DiaryFiles.getMood(context, date)) }
 
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -92,7 +94,14 @@ private fun DiaryViewerScreen(date: String) {
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
+
+        MoodPicker(selected = mood) { picked ->
+            mood = picked
+            DiaryFiles.setMood(context, date, picked)
+        }
+
+        Spacer(Modifier.height(12.dp))
 
         if (editing) {
             OutlinedTextField(
@@ -105,30 +114,6 @@ private fun DiaryViewerScreen(date: String) {
         } else {
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 MarkdownText(text)
-            }
-        }
-    }
-}
-
-/** 아주 가벼운 마크다운 렌더. 제목/본문/사진 placeholder만 구분한다. */
-@Composable
-private fun MarkdownText(markdown: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        markdown.lines().forEach { raw ->
-            val line = raw.trimEnd()
-            when {
-                line.isBlank() -> Spacer(Modifier.height(4.dp))
-                line.startsWith("### ") ->
-                    Text(line.removePrefix("### "), style = MaterialTheme.typography.titleSmall)
-                line.startsWith("## ") ->
-                    Text(line.removePrefix("## "), style = MaterialTheme.typography.titleMedium)
-                line.startsWith("# ") ->
-                    Text(line.removePrefix("# "), style = MaterialTheme.typography.titleLarge)
-                line.startsWith("![") ->
-                    Text("(사진)", style = MaterialTheme.typography.bodySmall)
-                line.startsWith("> ") ->
-                    Text(line.removePrefix("> "), style = MaterialTheme.typography.bodyMedium)
-                else -> Text(line, style = MaterialTheme.typography.bodyLarge)
             }
         }
     }
