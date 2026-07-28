@@ -4,25 +4,36 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
 /**
- * Health Connect 기반 [SleepReader].
+ * Health Connect 기반 수집 리더. 여러 소스(수면·걸음)를 한 클라이언트로 읽는다.
+ *
+ * 읽기 자체는 소스별 인터페이스([SleepReader], [StepsReader])로 나눠 두고,
+ * 공통 배선(클라이언트·가용성·권한)만 여기서 공유한다. 소스가 셋 이상으로
+ * 늘면 공통부를 별도 베이스로 뽑는다.
  *
  * 권한 요청 플로우(PermissionController 계약)는 Health Connect에 특화돼 있어
- * 화면 쪽에서 [permissions]를 직접 쓰게 두고, 읽기 로직만 인터페이스로 감쌌다.
+ * 화면 쪽에서 [permissions]를 직접 쓰게 둔다.
  */
-class HealthConnectSleepReader(private val context: Context) : SleepReader {
+class HealthConnectReader(private val context: Context) : SleepReader, StepsReader {
 
     private val client: HealthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+    private val zone: ZoneId = ZoneId.systemDefault()
 
-    /** 화면에서 권한 요청 계약에 넘길 권한 집합. */
-    val permissions: Set<String> =
-        setOf(HealthPermission.getReadPermission(SleepSessionRecord::class))
+    /** 화면에서 권한 요청 계약에 넘길 권한 집합(수면·걸음 읽기). */
+    val permissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
+    )
 
     override fun availability(): HealthAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
@@ -73,6 +84,17 @@ class HealthConnectSleepReader(private val context: Context) : SleepReader {
             totalMinutes = totalMinutes,
             stageMinutes = stageMinutes,
         )
+    }
+
+    override suspend fun readTodaySteps(reference: Instant): Long? {
+        val startOfDay = LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        val result = client.aggregate(
+            AggregateRequest(
+                metrics = setOf(StepsRecord.COUNT_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(startOfDay, reference),
+            )
+        )
+        return result[StepsRecord.COUNT_TOTAL]
     }
 
     private fun isAsleep(stage: Int): Boolean = when (stage) {

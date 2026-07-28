@@ -21,25 +21,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import com.bedside.health.HealthAvailability
-import com.bedside.health.HealthConnectSleepReader
+import com.bedside.health.HealthConnectReader
 import com.bedside.health.SleepSummary
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * 수면 읽기 스켈레톤 화면.
+ * 수집 리더 확인용 스켈레톤 화면.
  *
- * 목적은 UI가 아니라 파이프라인 확인이다 — Health Connect에서 어젯밤 수면을
- * 한 줄로 읽어오는 경로가 실제로 도는지 폰에서 눈으로 본다.
+ * 목적은 UI가 아니라 파이프라인 확인이다 — Health Connect에서 수면·걸음을
+ * 읽어오는 경로가 실제로 도는지 폰에서 눈으로 본다.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    SleepScreen()
+                    HealthScreen()
                 }
             }
         }
@@ -55,21 +55,22 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun SleepScreen() {
+private fun HealthScreen() {
     val context = LocalContext.current
-    val reader = remember { HealthConnectSleepReader(context) }
+    val reader = remember { HealthConnectReader(context) }
     val scope = rememberCoroutineScope()
 
     val availability = remember { reader.availability() }
     var status by remember { mutableStateOf("준비됨") }
     var granted by remember { mutableStateOf(false) }
-    var summary by remember { mutableStateOf<SleepSummary?>(null) }
+    var sleep by remember { mutableStateOf<SleepSummary?>(null) }
+    var steps by remember { mutableStateOf<Long?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { grantedPerms ->
         granted = grantedPerms.containsAll(reader.permissions)
-        status = if (granted) "권한 허용됨" else "권한이 거부됨"
+        status = if (granted) "권한 허용됨" else "권한이 거부됨(일부 포함)"
     }
 
     LaunchedEffect(Unit) {
@@ -86,42 +87,61 @@ private fun SleepScreen() {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("bedside — 수면 읽기 스켈레톤", style = MaterialTheme.typography.titleLarge)
+        Text("bedside — 수집 리더 스켈레톤", style = MaterialTheme.typography.titleLarge)
         Text("Health Connect: ${availabilityText(availability)}")
         Text("상태: $status")
 
         Button(
             onClick = { permissionLauncher.launch(reader.permissions) },
             enabled = availability == HealthAvailability.AVAILABLE && !granted,
-        ) { Text("수면 읽기 권한 요청") }
+        ) { Text("수면·걸음 읽기 권한 요청") }
 
         Button(
             onClick = {
                 scope.launch {
-                    status = "읽는 중..."
-                    summary = try {
+                    status = "수면 읽는 중..."
+                    sleep = try {
                         reader.readLastNight(Instant.now())
                     } catch (t: Throwable) {
-                        status = "오류: ${t.message}"
+                        status = "수면 오류: ${t.message}"
                         return@launch
                     }
-                    status = if (summary == null) "어젯밤 수면 기록 없음" else "읽음"
+                    status = if (sleep == null) "어젯밤 수면 기록 없음" else "수면 읽음"
                 }
             },
             enabled = granted,
         ) { Text("어젯밤 수면 읽기") }
 
-        summary?.let { SummaryView(it) }
+        Button(
+            onClick = {
+                scope.launch {
+                    status = "걸음 읽는 중..."
+                    steps = try {
+                        reader.readTodaySteps(Instant.now())
+                    } catch (t: Throwable) {
+                        status = "걸음 오류: ${t.message}"
+                        return@launch
+                    }
+                    status = if (steps == null) "오늘 걸음 기록 없음" else "걸음 읽음"
+                }
+            },
+            enabled = granted,
+        ) { Text("오늘 걸음 읽기") }
+
+        if (sleep != null || steps != null) {
+            HorizontalDivider()
+            steps?.let { Text("오늘 걸음 ${it}보") }
+            sleep?.let { SleepView(it) }
+        }
     }
 }
 
 @Composable
-private fun SummaryView(s: SleepSummary) {
+private fun SleepView(s: SleepSummary) {
     val fmt = remember {
         DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault())
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        HorizontalDivider()
         Text("취침 ${fmt.format(s.start)} → 기상 ${fmt.format(s.end)}")
         Text("총 수면 ${s.totalMinutes / 60}시간 ${s.totalMinutes % 60}분")
         s.stageMinutes.forEach { (name, minutes) ->
