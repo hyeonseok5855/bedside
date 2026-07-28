@@ -61,6 +61,15 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".DiaryViewerActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- 지오펜스 전이(진입·이탈) 수신 -->
         <receiver
             android:name=".location.GeofenceBroadcastReceiver"
