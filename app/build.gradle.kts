@@ -42,6 +42,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "HOME_LABEL", "\"${personal("home.label", "집")}\"")
         buildConfigField("String", "HOME_ADDRESS", "\"${personal("home.address")}\"")
@@ -98,4 +99,15 @@ dependencies {
     implementation(libs.sqlcipher.android)
 
     implementation(libs.kotlinx.coroutines.android)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.org.json) // 유닛 테스트 JVM에서 실물 org.json 사용
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.sqlcipher.android)
 }

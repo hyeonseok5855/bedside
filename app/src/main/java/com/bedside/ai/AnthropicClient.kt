@@ -119,8 +119,8 @@ object AnthropicClient {
         }
     }
 
-    /** content 배열에서 text 블록만 이어붙인다. thinking 블록은 무시. */
-    private fun parseText(json: String): String {
+    /** content 배열에서 text 블록만 이어붙인다. thinking 블록은 무시. (테스트 노출) */
+    internal fun parseText(json: String): String {
         val content = JSONObject(json).optJSONArray("content") ?: return ""
         val sb = StringBuilder()
         for (i in 0 until content.length()) {

@@ -16,8 +16,8 @@ object PromptLoader {
     private fun read(context: Context, name: String): String =
         context.assets.open("prompts/$name").bufferedReader().use { it.readText() }
 
-    /** 첫 ``` ... ``` 코드펜스의 내용. 없으면 원문 전체. */
-    private fun fencedBlock(markdown: String): String {
+    /** 첫 ``` ... ``` 코드펜스의 내용. 없으면 원문 전체. (테스트 노출) */
+    internal fun fencedBlock(markdown: String): String {
         val lines = markdown.lines()
         val start = lines.indexOfFirst { it.trimStart().startsWith("```") }
         if (start < 0) return markdown.trim()
