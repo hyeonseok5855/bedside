@@ -18,7 +18,7 @@ data class Place(
 }
 
 object GeofencePlaces {
-    const val RADIUS_METERS = 150f
+    const val RADIUS_METERS = 200f // 경계 지터 완화를 위해 150→200 (결정 46)
 
     val all: List<Place> = listOf(
         Place(

@@ -106,10 +106,14 @@ class GeofenceManager(private val context: Context) {
                     .setTransitionTypes(
                         Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT,
                     )
+                    // 경계 GPS 지터 완화: 전이를 최대 5분 배치해 보고(즉시성 불필요, 결정 46).
+                    .setNotificationResponsiveness(5 * 60 * 1000)
                     .build()
             }
             val request = GeofencingRequest.Builder()
-                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                // 초기 발화 없음. 등록·부팅 때 "지금 여기 있음"을 도착으로 쏘지 않는다 —
+                // 실제 진입·이탈만 기록한다(결정 46).
+                .setInitialTrigger(0)
                 .addGeofences(geofences)
                 .build()
             client.addGeofences(request, pendingIntent)

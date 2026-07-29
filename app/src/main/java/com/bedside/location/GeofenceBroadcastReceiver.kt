@@ -50,19 +50,28 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         val now = System.currentTimeMillis()
         val occurredAt = event.triggeringLocation?.time ?: now
         val value = if (lat != null && lng != null) "$lat,$lng" else null
+        val type = if (kind == "도착") "enter" else "exit"
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                Db.get(context).events().insert(
-                    CollectedEvent(
-                        source = "geofence",
-                        type = if (kind == "도착") "enter" else "exit",
-                        label = label,
-                        value = value,
-                        occurredAt = occurredAt,
-                        recordedAt = now,
-                    ),
-                )
+                val dao = Db.get(context).events()
+                // 같은 장소·같은 전이가 최근 창 안에 이미 있으면 건너뛴다(경계 지터 중복 억제, 결정 46).
+                val recentDup = dao.recent(30).any {
+                    it.source == "geofence" && it.label == label && it.type == type &&
+                        now - it.recordedAt < DEDUP_WINDOW_MS
+                }
+                if (!recentDup) {
+                    dao.insert(
+                        CollectedEvent(
+                            source = "geofence",
+                            type = type,
+                            label = label,
+                            value = value,
+                            occurredAt = occurredAt,
+                            recordedAt = now,
+                        ),
+                    )
+                }
             } catch (t: Throwable) {
                 Log.w(TAG, "이벤트 적립 실패: ${t.message}")
             } finally {
@@ -73,5 +82,6 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
     private companion object {
         const val TAG = "bedside"
+        const val DEDUP_WINDOW_MS = 10 * 60 * 1000L // 같은 전이 10분 내 중복 억제
     }
 }
