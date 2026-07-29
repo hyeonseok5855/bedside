@@ -70,6 +70,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 틈틈이 알림 다음 슬롯 예약(결정 39). 켜져 있을 때만 실제로 잡힌다.
+        com.bedside.nudge.NudgeScheduler.scheduleNext(this)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -160,7 +162,7 @@ private fun HomeScreen(tick: Int) {
                 .fillMaxWidth()
                 .height(88.dp),
         ) {
-            Text("오늘 밤 이야기하기", style = MaterialTheme.typography.titleLarge)
+            Text("지금 이야기하기", style = MaterialTheme.typography.titleLarge)
         }
 
         // 습관 — 압박 아닌 시각적 만족. 이번 달 기록 일수 + 최근 5주 히트맵 + 돌아보기.
@@ -194,7 +196,7 @@ private fun HomeScreen(tick: Int) {
 
         if (diaries.isEmpty()) {
             Text(
-                "아직 일기가 없어요. 오늘 밤 첫 이야기를 시작해보세요.",
+                "아직 일기가 없어요. 지금 첫 이야기를 시작해보세요.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {

@@ -36,16 +36,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.bedside.ai.AnthropicClient
 import com.bedside.ai.ChatMessage
-import com.bedside.ai.PersonaLoader
 import com.bedside.ai.PersonaMemory
 import com.bedside.ai.PromptLoader
 import com.bedside.ai.Task
 import com.bedside.data.Db
 import com.bedside.data.Message
-import com.bedside.diary.Continuity
-import com.bedside.diary.DayBriefing
+import com.bedside.diary.ConversationContext
 import com.bedside.diary.DiaryFiles
 import com.bedside.diary.DiaryPhotos
+import com.bedside.diary.NowContext
 import com.bedside.log.TranscriptLog
 import com.bedside.media.MediaStorePhotoReader
 import com.bedside.ui.MoodPicker
@@ -74,8 +73,6 @@ class ConversationActivity : ComponentActivity() {
     }
 }
 
-private const val KICKOFF = "오늘 밤 대화를 시작합니다. 브리핑을 참고해 첫 질문을 하나만 해주세요."
-
 @Composable
 private fun ConversationScreen() {
     val context = LocalContext.current
@@ -103,16 +100,7 @@ private fun ConversationScreen() {
 
     LaunchedEffect(Unit) {
         try {
-            val interviewer = PromptLoader.interviewer(context)
-            val persona = PersonaLoader.load(context)
-            val continuity = Continuity.build(context, today)
-            val briefing = DayBriefing.build(context, today)
-            systemPrompt = buildString {
-                append(interviewer)
-                if (persona.isNotBlank()) append("\n\n").append(persona)
-                if (continuity.isNotBlank()) append("\n\n").append(continuity)
-                append("\n\n# 오늘 브리핑\n").append(briefing)
-            }
+            systemPrompt = ConversationContext.base(context, today)
             // 이 세션이 처음이면 평문 로그에 시스템 프롬프트를 헤더로 박는다.
             TranscriptLog.startIfNew(context, dateStr, systemPrompt)
 
@@ -124,7 +112,8 @@ private fun ConversationScreen() {
             } else {
                 busy = true
                 status = "첫 질문 받는 중..."
-                val first = AnthropicClient.complete(Task.CONVERSATION, systemPrompt, listOf(ChatMessage("user", KICKOFF)))
+                val sys = systemPrompt + "\n\n" + NowContext.build(context)
+                val first = AnthropicClient.complete(Task.CONVERSATION, sys, listOf(ChatMessage("user", ConversationContext.KICKOFF)))
                 persist("assistant", first)
                 turns = listOf(ChatMessage("assistant", first))
                 status = ""
@@ -151,8 +140,11 @@ private fun ConversationScreen() {
             persist("user", text)
             turns = turns + ChatMessage("user", text)
             try {
-                val apiMessages = listOf(ChatMessage("user", KICKOFF)) + turns
-                val reply = AnthropicClient.complete(Task.CONVERSATION, systemPrompt, apiMessages)
+                val apiMessages = ConversationContext.normalize(
+                    listOf(ChatMessage("user", ConversationContext.KICKOFF)) + turns,
+                )
+                val sys = systemPrompt + "\n\n" + NowContext.build(context)
+                val reply = AnthropicClient.complete(Task.CONVERSATION, sys, apiMessages)
                 persist("assistant", reply)
                 turns = turns + ChatMessage("assistant", reply)
             } catch (t: Throwable) {
@@ -229,7 +221,7 @@ private fun ConversationScreen() {
             .imePadding() // 키보드가 올라오면 그만큼 바닥을 밀어 입력창을 키보드 위로
             .padding(16.dp),
     ) {
-        Text("오늘 밤", style = MaterialTheme.typography.titleMedium)
+        Text("오늘", style = MaterialTheme.typography.titleMedium)
         if (status.isNotEmpty()) {
             Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
@@ -281,7 +273,7 @@ private fun ConversationScreen() {
                 onClick = { writeDiary() },
                 enabled = !busy && turns.size >= 2,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            ) { Text("이제 그만 · 오늘 일기 쓰기") }
+            ) { Text("오늘 하루 마무리 · 일기 쓰기") }
         }
     }
 }

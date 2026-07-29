@@ -54,6 +54,8 @@ object SetupStatus {
             out += "알림"
         }
 
+        if (!granted(context, Manifest.permission.READ_CALENDAR)) out += "캘린더"
+
         val pm = context.getSystemService(PowerManager::class.java)
         if (pm != null && !pm.isIgnoringBatteryOptimizations(context.packageName)) {
             out += "배터리 최적화 예외"
