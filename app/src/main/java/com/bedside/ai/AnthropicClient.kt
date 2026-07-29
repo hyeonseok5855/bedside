@@ -16,7 +16,7 @@ data class ChatMessage(val role: String, val text: String)
  * - CONVERSATION: 속도 우선. thinking 끄고 effort 낮게.
  * - DIARY: 깊은 사고 우선. adaptive thinking + 높은 effort, 시간이 걸려도 됨.
  */
-enum class Task { CONVERSATION, DIARY, REVIEW }
+enum class Task { CONVERSATION, DIARY, REVIEW, SUGGEST }
 
 /**
  * Claude Messages API 클라이언트 (텍스트, 비스트리밍).
@@ -43,13 +43,21 @@ object AnthropicClient {
     )
 
     private fun profileFor(task: Task): Profile = when (task) {
-        // 대화: 빠르게. Sonnet 5는 thinking 생략 시 adaptive가 켜지므로 명시적으로 끈다.
+        // 대화: Sonnet 5 보통(medium). thinking은 끈다(생략 시 adaptive가 켜지므로 명시).
         Task.CONVERSATION -> Profile(
             model = "claude-sonnet-5",
             maxTokens = 1024,
             thinking = "disabled",
-            effort = "low",
+            effort = "medium",
             readTimeoutMs = 60_000,
+        )
+        // 답변 추천: 대화와 같은 Sonnet 5 보통. 짧게 여러 개라 max_tokens만 줄인다.
+        Task.SUGGEST -> Profile(
+            model = "claude-sonnet-5",
+            maxTokens = 400,
+            thinking = "disabled",
+            effort = "medium",
+            readTimeoutMs = 30_000,
         )
         // 일기: 깊게. 하루 1회, 종합·성찰이 필요하니 Opus 4.8 + adaptive thinking.
         Task.DIARY -> Profile(
