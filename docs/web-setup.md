@@ -14,6 +14,10 @@ Cloud Function(두뇌)이 Claude 키를 들고 한다. 1단계는 **웹 단독�
    한도 안이라 실제 과금은 거의 0.
 5. **웹 앱 등록**(</> 아이콘) → `firebaseConfig` 복사 →
    `web/firebase-config.example.js`를 `web/firebase-config.js`로 복사해 값 채우기.
+   - ⚠️ **콘솔이 주는 스니펫 전체를 붙이지 말 것.** `import ... from "firebase/app"`,
+     `const app = initializeApp(...)` 같은 줄은 번들러용이라 브라우저에서 에러난다
+     (`Failed to resolve module specifier "firebase/app"`). **`export const firebaseConfig = {...}`
+     형태로 config 객체만** 넣는다(초기화는 app.js가 함).
 6. `.firebaserc`의 `YOUR_FIREBASE_PROJECT_ID`를 실제 프로젝트 ID로.
 
 ## B. Claude 키를 Function 시크릿으로
@@ -45,6 +49,10 @@ firebase deploy --only firestore:rules,functions,hosting
 - 답이 안 옴: Functions 로그 확인 `firebase functions:log`. 보통 시크릿 미설정 또는
   Firestore/Function 리전 불일치.
 - 권한 오류: Auth 익명 로그인 사용 설정됐는지, 규칙이 배포됐는지 확인.
+- "연결 중…"에서 안 넘어가고 날짜도 안 뜸: 브라우저 콘솔에 module 에러 → firebase-config.js
+  가 config 객체만 export하는지 확인(위 A.5 경고).
+- 고쳤는데 그대로임: **브라우저 캐시**. 하드 리로드(Ctrl+Shift+R)로 새로 받는다.
+- 함수 첫 배포가 Eventarc 권한 오류로 실패: 2세대 함수 초기화 지연. 몇 분 뒤 재배포하면 됨.
 
 ## 다음 (2단계, 별도 진행)
 
