@@ -3,6 +3,8 @@ package com.bedside.diary
 import android.content.Context
 import com.bedside.data.CollectedEvent
 import com.bedside.data.Db
+import com.bedside.health.HealthAvailability
+import com.bedside.health.HealthConnectReader
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -25,7 +27,29 @@ object DayBriefing {
 
         val events = Db.get(context).events().recent(200)
             .filter { it.occurredAt in start until end }
-        return render(events)
+        // 수면은 지난밤 기록이라 오늘 이벤트 창에 안 걸린다. 대화 시점에 직접 읽어 붙인다
+        // (수집기는 매시간 돌아 중복이 되므로 여기서 라이브로). 결정 41.
+        return listOf(sleepLine(context), render(events))
+            .filter { it.isNotBlank() }
+            .joinToString("\n\n")
+    }
+
+    /** 지난밤 수면 한 줄. 권한 없거나 기록 없으면 "". */
+    private suspend fun sleepLine(context: Context): String {
+        val health = HealthConnectReader(context)
+        // 수면만 직접 읽는다. hasReadPermission()은 수면·걸음·몸무게 '전부'를 요구해서,
+        // 몸무게 권한이 없으면 수면까지 막혀 버린다(설정 화면은 직접 읽어서 됐던 이유). 결정 41.
+        if (runCatching { health.availability() }.getOrNull() != HealthAvailability.AVAILABLE) return ""
+        val s = runCatching { health.readLastNight(Instant.now()) }.getOrNull() ?: return ""
+        val h = s.totalMinutes / 60
+        val m = s.totalMinutes % 60
+        val range = "${timeFmt.format(s.start)}~${timeFmt.format(s.end)}"
+        val stages = if (s.stageMinutes.isEmpty()) {
+            ""
+        } else {
+            " · " + s.stageMinutes.entries.joinToString(", ") { "${it.key} ${it.value}분" }
+        }
+        return "지난밤 수면(질문 재료): 총 ${h}시간 ${m}분 ($range)$stages"
     }
 
     /**
