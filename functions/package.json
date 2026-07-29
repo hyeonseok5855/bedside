@@ -1,0 +1,14 @@
+{
+  "name": "bedside-functions",
+  "description": "bedside 웹 대화용 Cloud Functions (Claude 프록시)",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "private": true
+}

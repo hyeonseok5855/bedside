@@ -35,3 +35,12 @@ captures/
 
 # OS
 .DS_Store
+
+# Firebase / 웹 / 함수
+node_modules/
+web/firebase-config.js
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.runtimeconfig.json
