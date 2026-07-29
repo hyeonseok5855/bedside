@@ -82,7 +82,11 @@ class MediaStorePhotoReader(private val context: Context) : PhotoReader {
             }
         }
 
-    override suspend fun readTodayPhotoRefs(reference: Instant, limit: Int): List<PhotoRef> =
+    override suspend fun readTodayPhotoRefs(
+        reference: Instant,
+        limit: Int,
+        withLocation: Boolean,
+    ): List<PhotoRef> =
         withContext(Dispatchers.IO) {
             val startOfDayMs = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
 
@@ -110,7 +114,8 @@ class MediaStorePhotoReader(private val context: Context) : PhotoReader {
                     val ms = if (takenMs > 0) takenMs else c.getLong(addedIdx) * 1000
                     if (ms < startOfDayMs) continue
                     val itemUri = ContentUris.withAppendedId(collection, c.getLong(idIdx))
-                    refs += PhotoRef(uri = itemUri.toString(), time = Instant.ofEpochMilli(ms))
+                    val loc = if (withLocation) readLocation(itemUri) else null
+                    refs += PhotoRef(uri = itemUri.toString(), time = Instant.ofEpochMilli(ms), location = loc)
                 }
             }
             refs.sortedBy { it.time }.take(limit)

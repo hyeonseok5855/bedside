@@ -26,13 +26,20 @@ data class PhotoSummary(
  * 사진 한 장의 참조. 일기에 장면 사진을 끼워넣을 때 쓴다(결정 35). content:// URI라
  * 이미지 바이트를 앱이 들고 있지 않는다 — 렌더 시 Coil이 권한으로 읽는다.
  */
-data class PhotoRef(val uri: String, val time: Instant)
+data class PhotoRef(val uri: String, val time: Instant, val location: LatLng? = null)
 
 /** 사진 메타데이터 읽기. 벤더/플랫폼을 인터페이스 뒤에 둔다. */
 interface PhotoReader {
     /** 오늘(자정~기준 시각) 촬영/추가된 사진 요약. 없으면 null. */
     suspend fun readTodayPhotos(reference: Instant): PhotoSummary?
 
-    /** 오늘 사진의 content URI 목록(시간순, 최대 [limit]장). 일기 삽입 후보. */
-    suspend fun readTodayPhotoRefs(reference: Instant, limit: Int = 12): List<PhotoRef>
+    /**
+     * 오늘 사진의 content URI 목록(시간순, 최대 [limit]장). 일기 삽입 후보.
+     * [withLocation]이면 사진별 EXIF GPS도 읽는다(느리므로 필요할 때만).
+     */
+    suspend fun readTodayPhotoRefs(
+        reference: Instant,
+        limit: Int = 12,
+        withLocation: Boolean = false,
+    ): List<PhotoRef>
 }
