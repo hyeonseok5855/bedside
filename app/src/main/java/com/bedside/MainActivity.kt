@@ -160,7 +160,7 @@ private fun HomeScreen(tick: Int) {
                 .fillMaxWidth()
                 .height(88.dp),
         ) {
-            Text("오늘 밤 이야기하기", style = MaterialTheme.typography.titleLarge)
+            Text("지금 이야기하기", style = MaterialTheme.typography.titleLarge)
         }
 
         // 습관 — 압박 아닌 시각적 만족. 이번 달 기록 일수 + 최근 5주 히트맵 + 돌아보기.
@@ -194,7 +194,7 @@ private fun HomeScreen(tick: Int) {
 
         if (diaries.isEmpty()) {
             Text(
-                "아직 일기가 없어요. 오늘 밤 첫 이야기를 시작해보세요.",
+                "아직 일기가 없어요. 지금 첫 이야기를 시작해보세요.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {

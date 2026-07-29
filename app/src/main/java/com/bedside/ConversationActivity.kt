@@ -46,6 +46,7 @@ import com.bedside.diary.Continuity
 import com.bedside.diary.DayBriefing
 import com.bedside.diary.DiaryFiles
 import com.bedside.diary.DiaryPhotos
+import com.bedside.diary.NowContext
 import com.bedside.log.TranscriptLog
 import com.bedside.media.MediaStorePhotoReader
 import com.bedside.ui.MoodPicker
@@ -74,7 +75,7 @@ class ConversationActivity : ComponentActivity() {
     }
 }
 
-private const val KICKOFF = "오늘 밤 대화를 시작합니다. 브리핑을 참고해 첫 질문을 하나만 해주세요."
+private const val KICKOFF = "라이징이 방금 대화를 열었습니다. '지금'(시각·요일·위치)과 브리핑을 보고, 지금이 하루의 어느 지점인지 헤아려 자연스럽게 말을 걸어 주세요. 질문은 하나만."
 
 @Composable
 private fun ConversationScreen() {
@@ -124,7 +125,8 @@ private fun ConversationScreen() {
             } else {
                 busy = true
                 status = "첫 질문 받는 중..."
-                val first = AnthropicClient.complete(Task.CONVERSATION, systemPrompt, listOf(ChatMessage("user", KICKOFF)))
+                val sys = systemPrompt + "\n\n" + NowContext.build(context)
+                val first = AnthropicClient.complete(Task.CONVERSATION, sys, listOf(ChatMessage("user", KICKOFF)))
                 persist("assistant", first)
                 turns = listOf(ChatMessage("assistant", first))
                 status = ""
@@ -152,7 +154,8 @@ private fun ConversationScreen() {
             turns = turns + ChatMessage("user", text)
             try {
                 val apiMessages = listOf(ChatMessage("user", KICKOFF)) + turns
-                val reply = AnthropicClient.complete(Task.CONVERSATION, systemPrompt, apiMessages)
+                val sys = systemPrompt + "\n\n" + NowContext.build(context)
+                val reply = AnthropicClient.complete(Task.CONVERSATION, sys, apiMessages)
                 persist("assistant", reply)
                 turns = turns + ChatMessage("assistant", reply)
             } catch (t: Throwable) {
@@ -229,7 +232,7 @@ private fun ConversationScreen() {
             .imePadding() // 키보드가 올라오면 그만큼 바닥을 밀어 입력창을 키보드 위로
             .padding(16.dp),
     ) {
-        Text("오늘 밤", style = MaterialTheme.typography.titleMedium)
+        Text("오늘", style = MaterialTheme.typography.titleMedium)
         if (status.isNotEmpty()) {
             Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
@@ -281,7 +284,7 @@ private fun ConversationScreen() {
                 onClick = { writeDiary() },
                 enabled = !busy && turns.size >= 2,
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            ) { Text("이제 그만 · 오늘 일기 쓰기") }
+            ) { Text("오늘 하루 마무리 · 일기 쓰기") }
         }
     }
 }
