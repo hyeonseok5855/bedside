@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 // 개인 위치 설정(집·회사)은 gitignore된 personal.properties에서만 읽는다.
@@ -109,6 +110,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.coil.compose) // 일기 속 장면 사진 렌더(결정 35)
+
+    // Firebase — 웹 동기화(결정 52). BOM으로 버전 통일.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.auth)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
