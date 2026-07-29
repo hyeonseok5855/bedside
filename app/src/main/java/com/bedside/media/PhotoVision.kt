@@ -12,8 +12,6 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.time.Instant
-import java.time.temporal.ChronoUnit
 import kotlin.math.max
 
 /**
@@ -35,7 +33,7 @@ object PhotoVision {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY, value).apply()
     }
 
-    private fun hasPermission(context: Context): Boolean {
+    fun hasPermission(context: Context): Boolean {
         val perm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {
@@ -44,28 +42,15 @@ object PhotoVision {
         return ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
     }
 
-    /** 최근 [withinMinutes]분 내 사진의 base64 JPEG. 최대 [limit]장. 꺼졌거나 없으면 빈 목록. */
-    suspend fun recentPhotos(
-        context: Context,
-        withinMinutes: Long = 15,
-        limit: Int = 2,
-    ): List<String> = withContext(Dispatchers.IO) {
-        if (!enabled(context) || !hasPermission(context)) return@withContext emptyList()
+    /** 사진 하나를 축소 JPEG base64로. 실패하면 null. AI가 도구로 요청한 사진을 인코딩할 때. */
+    suspend fun encodeUri(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
         runCatching {
-            val refs = MediaStorePhotoReader(context).readTodayPhotoRefs(Instant.now(), limit = 12)
-            val cutoff = Instant.now().minus(withinMinutes, ChronoUnit.MINUTES)
-            refs.filter { it.time.isAfter(cutoff) }
-                .takeLast(limit)
-                .mapNotNull { encode(context, Uri.parse(it.uri)) }
-        }.getOrDefault(emptyList())
-    }
-
-    private fun encode(context: Context, uri: Uri): String? {
-        val bmp = loadDownscaled(context, uri) ?: return null
-        return ByteArrayOutputStream().use { baos ->
-            bmp.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, baos)
-            Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
-        }
+            val bmp = loadDownscaled(context, uri) ?: return@runCatching null
+            ByteArrayOutputStream().use { baos ->
+                bmp.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, baos)
+                Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+            }
+        }.getOrNull()
     }
 
     private fun loadDownscaled(context: Context, uri: Uri): Bitmap? {

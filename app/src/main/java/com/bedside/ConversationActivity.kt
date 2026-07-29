@@ -50,7 +50,7 @@ import com.bedside.diary.DiaryPhotos
 import com.bedside.diary.NowContext
 import com.bedside.log.TranscriptLog
 import com.bedside.media.MediaStorePhotoReader
-import com.bedside.media.PhotoVision
+import com.bedside.media.PhotoCatalog
 import com.bedside.ui.MoodPicker
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -118,9 +118,11 @@ private fun ConversationScreen() {
             } else {
                 busy = true
                 status = "첫 질문 받는 중..."
-                val sys = systemPrompt + "\n\n" + NowContext.build(context)
-                val photos = PhotoVision.recentPhotos(context)
-                val first = AnthropicClient.complete(Task.CONVERSATION, sys, listOf(ChatMessage("user", ConversationContext.KICKOFF)), photos)
+                val catalog = PhotoCatalog.today(context)
+                val sys = systemPrompt + "\n\n" + NowContext.build(context) + photoSection(catalog)
+                val first = AnthropicClient.completeConversation(
+                    sys, listOf(ChatMessage("user", ConversationContext.KICKOFF)), photoToolFor(context, catalog),
+                )
                 persist("assistant", first)
                 turns = listOf(ChatMessage("assistant", first))
                 status = ""
@@ -188,9 +190,9 @@ private fun ConversationScreen() {
                 val apiMessages = ConversationContext.normalize(
                     listOf(ChatMessage("user", ConversationContext.KICKOFF)) + turns,
                 )
-                val sys = systemPrompt + "\n\n" + NowContext.build(context)
-                val photos = PhotoVision.recentPhotos(context)
-                val reply = AnthropicClient.complete(Task.CONVERSATION, sys, apiMessages, photos)
+                val catalog = PhotoCatalog.today(context)
+                val sys = systemPrompt + "\n\n" + NowContext.build(context) + photoSection(catalog)
+                val reply = AnthropicClient.completeConversation(sys, apiMessages, photoToolFor(context, catalog))
                 persist("assistant", reply)
                 turns = turns + ChatMessage("assistant", reply)
             } catch (t: Throwable) {
@@ -354,6 +356,24 @@ private fun ConversationScreen() {
         }
     }
 }
+
+/** 사진 목록 메타데이터를 시스템 프롬프트에 붙일 문자열. 비면 "". */
+private fun photoSection(catalog: List<PhotoCatalog.Item>): String =
+    if (catalog.isEmpty()) "" else "\n\n" + PhotoCatalog.metadataText(catalog)
+
+/** AI가 view_photos로 요청한 번호를 실제 이미지(base64)로 돌려주는 도구. 목록 없으면 null. */
+private fun photoToolFor(context: android.content.Context, catalog: List<PhotoCatalog.Item>): AnthropicClient.PhotoTool? =
+    if (catalog.isEmpty()) {
+        null
+    } else {
+        AnthropicClient.PhotoTool { indices ->
+            indices.mapNotNull { idx ->
+                catalog.getOrNull(idx - 1)?.let { item ->
+                    PhotoCatalog.encode(context, item)?.let { b64 -> "사진$idx" to b64 }
+                }
+            }
+        }
+    }
 
 @Composable
 private fun Bubble(text: String, mine: Boolean) {
