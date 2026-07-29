@@ -2,6 +2,7 @@
 /personal/
 *.diary.md
 transcripts/
+Transcripts/
 
 # 시크릿
 local.properties
