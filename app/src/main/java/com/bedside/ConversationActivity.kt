@@ -43,6 +43,7 @@ import com.bedside.diary.Continuity
 import com.bedside.diary.DayBriefing
 import com.bedside.diary.DiaryFiles
 import com.bedside.diary.DiaryPhotos
+import com.bedside.log.TranscriptLog
 import com.bedside.media.MediaStorePhotoReader
 import com.bedside.ui.MoodPicker
 import kotlinx.coroutines.launch
@@ -90,6 +91,8 @@ private fun ConversationScreen() {
         Db.get(context).messages().insert(
             Message(sessionDate = dateStr, role = role, text = text, createdAt = System.currentTimeMillis()),
         )
+        // 평문 대화 로그에도 남긴다(결정 36). 새 턴이 생기는 이 지점에서만.
+        TranscriptLog.append(context, dateStr, role, text)
     }
 
     LaunchedEffect(Unit) {
@@ -104,6 +107,8 @@ private fun ConversationScreen() {
                 if (continuity.isNotBlank()) append("\n\n").append(continuity)
                 append("\n\n# 오늘 브리핑\n").append(briefing)
             }
+            // 이 세션이 처음이면 평문 로그에 시스템 프롬프트를 헤더로 박는다.
+            TranscriptLog.startIfNew(context, dateStr, systemPrompt)
 
             val stored = Db.get(context).messages().forSession(dateStr)
                 .map { ChatMessage(it.role, it.text) }
@@ -184,6 +189,7 @@ private fun ConversationScreen() {
                 )
                 // ![](사진N) 자리표시자를 실제 사진 URI로 치환.
                 DiaryFiles.save(context, today, DiaryPhotos.resolve(md, photoRefs))
+                TranscriptLog.note(context, dateStr, "일기 생성됨")
                 done = true
                 status = "오늘 일기를 저장했어요."
 
