@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Claude API 호출 -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -27,6 +28,11 @@
 
     <!-- 오늘 일정 파악 (삼성 캘린더 포함, 표준 CalendarContract). 결정 38 -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+
+    <!-- 화면 사용시간(스크린타임). 특수 권한 — 설정에서 '사용 정보 접근'으로 켠다. 결정 50 -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- 수집 서비스 (FGS) + 재부팅 재등록 + 배터리 최적화 예외 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

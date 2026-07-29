@@ -5,6 +5,7 @@ import com.bedside.data.CollectedEvent
 import com.bedside.data.Db
 import com.bedside.health.HealthAvailability
 import com.bedside.health.HealthConnectReader
+import com.bedside.usage.ScreenTimeReader
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -29,7 +30,7 @@ object DayBriefing {
             .filter { it.occurredAt in start until end }
         // 수면은 지난밤 기록이라 오늘 이벤트 창에 안 걸린다. 대화 시점에 직접 읽어 붙인다
         // (수집기는 매시간 돌아 중복이 되므로 여기서 라이브로). 결정 41.
-        return listOf(sleepLine(context), render(events))
+        return listOf(sleepLine(context), ScreenTimeReader.briefingLine(context), render(events))
             .filter { it.isNotBlank() }
             .joinToString("\n\n")
     }

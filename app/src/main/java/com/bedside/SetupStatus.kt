@@ -56,6 +56,8 @@ object SetupStatus {
 
         if (!granted(context, Manifest.permission.READ_CALENDAR)) out += "캘린더"
 
+        if (!com.bedside.usage.ScreenTimeReader.hasPermission(context)) out += "화면 사용"
+
         val pm = context.getSystemService(PowerManager::class.java)
         if (pm != null && !pm.isIgnoringBatteryOptimizations(context.packageName)) {
             out += "배터리 최적화 예외"

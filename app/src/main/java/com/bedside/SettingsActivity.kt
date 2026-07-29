@@ -269,6 +269,33 @@ private fun SettingsScreen() {
         }
         HorizontalDivider()
 
+        // --- 화면 사용시간 ---
+        var stText by remember { mutableStateOf("") }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("화면 사용시간", style = MaterialTheme.typography.titleSmall)
+                Text("오늘 얼마나·뭘 봤는지 질문 재료로 (설정의 '사용 정보 접근' 허용)", style = MaterialTheme.typography.bodySmall)
+            }
+            Button(onClick = {
+                if (com.bedside.usage.ScreenTimeReader.hasPermission(context)) {
+                    val s = com.bedside.usage.ScreenTimeReader.today(context)
+                    stText = if (s == null) {
+                        "오늘 기록 없음"
+                    } else {
+                        "총 ${s.totalMinutes / 60}시간 ${s.totalMinutes % 60}분 · " +
+                            s.topApps.joinToString(", ") { "${it.first} ${it.second}분" }
+                    }
+                } else {
+                    com.bedside.usage.ScreenTimeReader.openSettings(context)
+                    status = "설정에서 bedside의 '사용 정보 접근'을 허용하세요"
+                }
+            }) { Text("오늘 보기") }
+        }
+        if (stText.isNotEmpty()) {
+            Text(stText, style = MaterialTheme.typography.bodySmall)
+        }
+        HorizontalDivider()
+
         Text("Health Connect: ${availabilityText(availability)}")
         Text("상태: $status")
 
