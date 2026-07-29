@@ -2,7 +2,7 @@
   "name": "bedside-functions",
   "description": "bedside 웹 대화용 Cloud Functions (Claude 프록시)",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {
