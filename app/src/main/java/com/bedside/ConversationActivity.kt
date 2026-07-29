@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import com.bedside.ai.AnthropicClient
 import com.bedside.ai.ChatMessage
 import com.bedside.ai.PersonaLoader
@@ -58,6 +61,9 @@ import java.time.LocalDate
 class ConversationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 입력창이 키보드에 가려지지 않게 IME 인셋을 직접 다룬다. adjustResize만으로는
+        // Compose에서 안 먹어서, 창을 인셋까지 그리게 하고 루트에 imePadding을 준다.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -216,7 +222,13 @@ private fun ConversationScreen() {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding() // 상태바·내비바 아래로
+            .imePadding() // 키보드가 올라오면 그만큼 바닥을 밀어 입력창을 키보드 위로
+            .padding(16.dp),
+    ) {
         Text("오늘 밤", style = MaterialTheme.typography.titleMedium)
         if (status.isNotEmpty()) {
             Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
