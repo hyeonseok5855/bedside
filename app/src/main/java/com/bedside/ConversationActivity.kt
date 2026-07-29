@@ -50,6 +50,7 @@ import com.bedside.diary.DiaryPhotos
 import com.bedside.diary.NowContext
 import com.bedside.log.TranscriptLog
 import com.bedside.media.MediaStorePhotoReader
+import com.bedside.media.PhotoVision
 import com.bedside.ui.MoodPicker
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -118,7 +119,8 @@ private fun ConversationScreen() {
                 busy = true
                 status = "첫 질문 받는 중..."
                 val sys = systemPrompt + "\n\n" + NowContext.build(context)
-                val first = AnthropicClient.complete(Task.CONVERSATION, sys, listOf(ChatMessage("user", ConversationContext.KICKOFF)))
+                val photos = PhotoVision.recentPhotos(context)
+                val first = AnthropicClient.complete(Task.CONVERSATION, sys, listOf(ChatMessage("user", ConversationContext.KICKOFF)), photos)
                 persist("assistant", first)
                 turns = listOf(ChatMessage("assistant", first))
                 status = ""
@@ -187,7 +189,8 @@ private fun ConversationScreen() {
                     listOf(ChatMessage("user", ConversationContext.KICKOFF)) + turns,
                 )
                 val sys = systemPrompt + "\n\n" + NowContext.build(context)
-                val reply = AnthropicClient.complete(Task.CONVERSATION, sys, apiMessages)
+                val photos = PhotoVision.recentPhotos(context)
+                val reply = AnthropicClient.complete(Task.CONVERSATION, sys, apiMessages, photos)
                 persist("assistant", reply)
                 turns = turns + ChatMessage("assistant", reply)
             } catch (t: Throwable) {

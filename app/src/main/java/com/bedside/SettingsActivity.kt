@@ -219,6 +219,22 @@ private fun SettingsScreen() {
                 },
             )
         }
+        // --- 사진 보여주기 (비전) ---
+        var photoVision by remember { mutableStateOf(com.bedside.media.PhotoVision.enabled(context)) }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("사진 보여주기", style = MaterialTheme.typography.titleSmall)
+                Text("방금 찍은 사진을 AI가 보고 반응(사진이 API로 전송됨)", style = MaterialTheme.typography.bodySmall)
+            }
+            androidx.compose.material3.Switch(
+                checked = photoVision,
+                onCheckedChange = { on ->
+                    photoVision = on
+                    com.bedside.media.PhotoVision.setEnabled(context, on)
+                    status = if (on) "사진 보여주기 켬" else "사진 보여주기 끔"
+                },
+            )
+        }
         HorizontalDivider()
 
         // --- 캘린더 (오늘 일정) ---

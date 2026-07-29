@@ -83,11 +83,14 @@ object AnthropicClient {
         task: Task,
         system: String,
         messages: List<ChatMessage>,
+        /** JPEG base64(NO_WRAP). 있으면 마지막 user 메시지에 이미지 블록으로 붙는다(비전). */
+        images: List<String> = emptyList(),
     ): String = withContext(Dispatchers.IO) {
         val key = BuildConfig.ANTHROPIC_API_KEY
         if (key.isBlank()) throw ApiException("ANTHROPIC_API_KEY 없음 (secrets.properties 확인)")
 
         val profile = profileFor(task)
+        val lastUserIdx = messages.indexOfLast { it.role == "user" }
 
         val body = JSONObject().apply {
             put("model", profile.model)
@@ -98,13 +101,28 @@ object AnthropicClient {
             put(
                 "messages",
                 JSONArray().apply {
-                    messages.forEach { m ->
-                        put(
-                            JSONObject().apply {
-                                put("role", m.role)
-                                put("content", m.text)
-                            },
-                        )
+                    messages.forEachIndexed { i, m ->
+                        val obj = JSONObject().put("role", m.role)
+                        if (images.isNotEmpty() && i == lastUserIdx) {
+                            // 마지막 user 메시지를 [텍스트 + 이미지들] 블록 배열로.
+                            val content = JSONArray()
+                            content.put(JSONObject().put("type", "text").put("text", m.text))
+                            images.forEach { b64 ->
+                                content.put(
+                                    JSONObject().put("type", "image").put(
+                                        "source",
+                                        JSONObject()
+                                            .put("type", "base64")
+                                            .put("media_type", "image/jpeg")
+                                            .put("data", b64),
+                                    ),
+                                )
+                            }
+                            obj.put("content", content)
+                        } else {
+                            obj.put("content", m.text)
+                        }
+                        put(obj)
                     }
                 },
             )
