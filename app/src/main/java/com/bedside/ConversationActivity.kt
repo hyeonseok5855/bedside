@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -89,6 +92,8 @@ private fun ConversationScreen() {
     var writing by remember { mutableStateOf(false) }
     var done by remember { mutableStateOf(false) }
     var mood by remember { mutableStateOf<String?>(null) }
+    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var loadingSuggestions by remember { mutableStateOf(false) }
 
     suspend fun persist(role: String, text: String) {
         Db.get(context).messages().insert(
@@ -130,10 +135,48 @@ private fun ConversationScreen() {
         scrollState.animateScrollTo(scrollState.maxValue)
     }
 
+    // 지금 라이징이 답할 만한 후보를 뽑는다(문맥 기반). 상대(인터뷰어)의 말 뒤에서만.
+    suspend fun loadSuggestions(current: List<ChatMessage>) {
+        if (current.lastOrNull()?.role != "assistant") {
+            suggestions = emptyList()
+            return
+        }
+        loadingSuggestions = true
+        try {
+            val dialog = current.takeLast(8).joinToString("\n") {
+                (if (it.role == "assistant") "상대" else "나") + ": " + it.text
+            }
+            val out = AnthropicClient.complete(
+                Task.SUGGEST,
+                PromptLoader.replySuggester(context),
+                listOf(ChatMessage("user", "다음은 지금까지의 대화야.\n\n$dialog\n\n이제 내가 답할 차례야. 내가 할 만한 답변 후보를 줘.")),
+            )
+            suggestions = out.lines()
+                .map { line ->
+                    line.trim()
+                        .removePrefix("-").removePrefix("*").removePrefix("•").trim()
+                        .replace(Regex("^\\d+[.)]\\s*"), "")
+                        .trim().trim('"').trim('\'')
+                }
+                .filter { it.isNotBlank() }
+                .take(3)
+        } catch (_: Throwable) {
+            suggestions = emptyList()
+        } finally {
+            loadingSuggestions = false
+        }
+    }
+
+    // 상대의 새 말이 붙으면 추천을 갱신, 내 차례가 아니면 지운다.
+    LaunchedEffect(turns.size, done) {
+        if (!done && turns.lastOrNull()?.role == "assistant") loadSuggestions(turns) else suggestions = emptyList()
+    }
+
     fun send() {
         val text = input.trim()
         if (text.isEmpty() || busy) return
         input = ""
+        suggestions = emptyList()
         scope.launch {
             busy = true
             status = ""
@@ -254,6 +297,37 @@ private fun ConversationScreen() {
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) { Text("오늘 일기 보기") }
         } else {
+            // 추천 답변 — 문맥 기반. 클릭하면 입력창에 채워지고, ↻로 다른 추천을 받는다.
+            if (!busy && loadingSuggestions && suggestions.isEmpty()) {
+                Text(
+                    "추천 불러오는 중…",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            } else if (!busy && suggestions.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    suggestions.forEach { s ->
+                        SuggestionChip(
+                            onClick = { input = s },
+                            label = { Text(s) },
+                        )
+                    }
+                    IconButton(
+                        onClick = { scope.launch { loadSuggestions(turns) } },
+                        enabled = !loadingSuggestions,
+                    ) {
+                        Text("↻", style = MaterialTheme.typography.titleLarge)
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
