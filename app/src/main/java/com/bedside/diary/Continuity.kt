@@ -1,6 +1,7 @@
 package com.bedside.diary
 
 import android.content.Context
+import com.bedside.ai.OpenThreads
 import com.bedside.ai.PersonaMemory
 import com.bedside.data.Db
 import java.time.LocalDate
@@ -16,12 +17,27 @@ object Continuity {
         val learned = PersonaMemory.load(context)
         val recent = DiaryFiles.recentBodies(context, today.toString(), 2)
         val heavy = recentHeavyTopics(context, today)
-        return render(learned, recent, heavy)
+        val recall = DiaryFiles.onThisDay(context, today).lastOrNull()
+            ?.let { it.label to DiaryFiles.read(context, it.date).take(800) }
+        val rendered = render(learned, recent, heavy, recall)
+        val threads = OpenThreads.forContext(context, today)
+        return if (threads.isBlank()) rendered else (rendered + "\n\n" + threads).trim()
     }
 
     /** 순수 조립부. DB/파일 접근과 분리해 단위 테스트한다. */
-    internal fun render(learned: String, recentDiaries: List<String>, heavyTopics: List<String>): String {
+    internal fun render(
+        learned: String,
+        recentDiaries: List<String>,
+        heavyTopics: List<String>,
+        recall: Pair<String, String>? = null,
+    ): String {
         val sb = StringBuilder()
+
+        if (recall != null) {
+            sb.append("# 그때의 오늘 (").append(recall.first)
+                .append(" 오늘의 일기 — 대화에 자연스럽게 떠올려 줘도 좋음)\n")
+                .append(recall.second).append("\n\n")
+        }
 
         if (learned.isNotBlank()) {
             sb.append("# 그동안 알게 된 것 (배경, 나열 금지)\n").append(learned).append("\n\n")

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.bedside.ai.AnthropicClient
 import com.bedside.ai.ChatMessage
+import com.bedside.ai.OpenThreads
 import com.bedside.ai.PersonaMemory
 import com.bedside.ai.PromptLoader
 import com.bedside.ai.Task
@@ -48,6 +49,7 @@ import com.bedside.diary.ConversationContext
 import com.bedside.diary.DiaryFiles
 import com.bedside.diary.DiaryPhotos
 import com.bedside.diary.NowContext
+import com.bedside.health.HealthConnectReader
 import com.bedside.log.TranscriptLog
 import com.bedside.media.MediaStorePhotoReader
 import com.bedside.media.PhotoCatalog
@@ -239,6 +241,23 @@ private fun ConversationScreen() {
                 done = true
                 status = "오늘 일기를 저장했어요."
 
+                // 오늘(지난밤) 수면 통계를 저장 — 수면·기분 인사이트용(결정 49).
+                try {
+                    HealthConnectReader(context).readLastNight(Instant.now())?.let { s ->
+                        DiaryFiles.saveStats(
+                            context, today,
+                            DiaryFiles.Stats(
+                                sleepMin = s.totalMinutes.toInt(),
+                                deepMin = (s.stageMinutes["깊은 수면"] ?: 0L).toInt(),
+                                remMin = (s.stageMinutes["렘"] ?: 0L).toInt(),
+                                awakeMin = (s.stageMinutes["깸"] ?: 0L).toInt(),
+                            ),
+                        )
+                    }
+                } catch (_: Throwable) {
+                    // 수면 통계 실패는 무시
+                }
+
                 // 앱이 라이징을 더 알아가게: 이 대화에서 새로 드러난 '오래 갈 사실'만 추려 저장.
                 // 일시적 감정·그날 사건은 제외. 실패해도 일기 저장에는 영향 없음.
                 try {
@@ -252,6 +271,20 @@ private fun ConversationScreen() {
                     PersonaMemory.append(context, facts.lines())
                 } catch (_: Throwable) {
                     // 학습 실패는 조용히 무시
+                }
+
+                // 열린 일(나중에 물어볼 것)을 뽑아 쌓는다(결정 48). 실패해도 무시.
+                try {
+                    val threads = AnthropicClient.complete(
+                        task = Task.CONVERSATION,
+                        system = "다음 대화에서 나중에 결과나 진행을 물어볼 만한 '열린 일'만 최대 3개, 각 줄 '- '로 " +
+                            "뽑아라. 예: 앞둔 발표·진료·면접, 새로 시작한 운동·공부, 결정 앞둔 고민. " +
+                            "이미 끝난 일이나 일시적 감정은 넣지 마라. 없으면 '없음'만 출력.",
+                        messages = listOf(ChatMessage("user", transcript)),
+                    )
+                    OpenThreads.addFrom(context, today, threads.lines())
+                } catch (_: Throwable) {
+                    // 무시
                 }
             } catch (t: Throwable) {
                 status = "일기 오류: ${t.message}"

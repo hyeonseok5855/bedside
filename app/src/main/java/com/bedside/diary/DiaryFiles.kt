@@ -84,6 +84,43 @@ object DiaryFiles {
             .filter { it.isNotBlank() }
             .toList()
 
+    /** 그때의 오늘 회상 항목: 얼마나 전인지 라벨 + 날짜 + 미리보기. */
+    data class Recall(val label: String, val date: String, val preview: String)
+
+    /** 그날의 수면 통계(분). 인사이트용, 일기와 함께 사이드카(.stats)에 저장(결정 49). */
+    data class Stats(val sleepMin: Int, val deepMin: Int, val remMin: Int, val awakeMin: Int)
+
+    private fun statsFileFor(context: Context, date: String): File = File(dir(context), "$date.stats")
+
+    fun saveStats(context: Context, date: LocalDate, s: Stats) {
+        statsFileFor(context, date.toString())
+            .writeText("sleep=${s.sleepMin},deep=${s.deepMin},rem=${s.remMin},awake=${s.awakeMin}")
+    }
+
+    fun getStats(context: Context, date: String): Stats? {
+        val f = statsFileFor(context, date)
+        if (!f.exists()) return null
+        val m = f.readText().split(",").mapNotNull {
+            val kv = it.split("=")
+            if (kv.size == 2) kv[0].trim() to (kv[1].trim().toIntOrNull() ?: 0) else null
+        }.toMap()
+        return Stats(m["sleep"] ?: 0, m["deep"] ?: 0, m["rem"] ?: 0, m["awake"] ?: 0)
+    }
+
+    /** 일주일/한 달/1년 전 '오늘'의 일기 중 존재하는 것들(결정 47). */
+    fun onThisDay(context: Context, today: LocalDate): List<Recall> {
+        val horizons = listOf(
+            "일주일 전" to today.minusWeeks(1),
+            "한 달 전" to today.minusMonths(1),
+            "1년 전" to today.minusYears(1),
+        )
+        return horizons.mapNotNull { (label, d) ->
+            val date = d.toString()
+            val body = read(context, date)
+            if (body.isBlank()) null else Recall(label, date, firstLine(body))
+        }
+    }
+
     private fun firstLine(markdown: String): String =
         markdown.lineSequence()
             .map { it.trim().removePrefix("#").trim() }

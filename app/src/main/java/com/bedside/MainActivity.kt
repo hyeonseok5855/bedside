@@ -116,9 +116,11 @@ private fun HomeScreen(tick: Int) {
 
     var missing by remember { mutableStateOf<List<String>>(emptyList()) }
     var diaries by remember { mutableStateOf<List<DiaryFiles.Entry>>(emptyList()) }
+    var recalls by remember { mutableStateOf<List<DiaryFiles.Recall>>(emptyList()) }
 
     LaunchedEffect(tick) {
         diaries = DiaryFiles.list(context)
+        recalls = DiaryFiles.onThisDay(context, today)
         missing = SetupStatus.missing(context)
     }
 
@@ -165,6 +167,40 @@ private fun HomeScreen(tick: Int) {
             Text("지금 이야기하기", style = MaterialTheme.typography.titleLarge)
         }
 
+        // 그때의 오늘 — 일주일/한 달/1년 전 오늘의 일기. 있을 때만.
+        if (recalls.isNotEmpty()) {
+            Text("그때의 오늘", style = MaterialTheme.typography.titleMedium)
+            recalls.forEach { r ->
+                val label = runCatching { "${r.label} · " + LocalDate.parse(r.date).format(rowFmt) }
+                    .getOrDefault(r.label)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            context.startActivity(
+                                Intent(context, DiaryViewerActivity::class.java)
+                                    .putExtra(DiaryViewerActivity.EXTRA_DATE, r.date),
+                            )
+                        },
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    ),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(label, style = MaterialTheme.typography.titleSmall)
+                        if (r.preview.isNotBlank()) {
+                            Text(
+                                r.preview,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // 습관 — 압박 아닌 시각적 만족. 이번 달 기록 일수 + 최근 5주 히트맵 + 돌아보기.
         if (diaries.isNotEmpty()) {
             val diaryDates = remember(diaries) { diaries.map { it.date }.toSet() }
@@ -177,8 +213,11 @@ private fun HomeScreen(tick: Int) {
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
+                    TextButton(onClick = { context.startActivity(Intent(context, InsightsActivity::class.java)) }) {
+                        Text("수면·기분")
+                    }
                     TextButton(onClick = { context.startActivity(Intent(context, ReviewActivity::class.java)) }) {
-                        Text("돌아보기 →")
+                        Text("돌아보기")
                     }
                 }
                 DiaryHeatmap(diaryDates, today)
