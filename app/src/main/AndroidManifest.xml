@@ -25,6 +25,9 @@
     <!-- 진입·이탈 알림 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- 오늘 일정 파악 (삼성 캘린더 포함, 표준 CalendarContract). 결정 38 -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+
     <!-- 수집 서비스 (FGS) + 재부팅 재등록 + 배터리 최적화 예외 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />

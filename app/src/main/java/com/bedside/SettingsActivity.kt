@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.PermissionController
+import com.bedside.calendar.CalendarReader
 import com.bedside.collect.CollectionScheduler
 import com.bedside.data.CollectedEvent
 import com.bedside.data.Db
@@ -201,6 +202,38 @@ private fun SettingsScreen() {
                     }
                 },
             )
+        }
+        HorizontalDivider()
+
+        // --- 캘린더 (오늘 일정) ---
+        var calGranted by remember { mutableStateOf(CalendarReader.hasPermission(context)) }
+        var calText by remember { mutableStateOf("") }
+        val calLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            calGranted = granted
+            status = if (granted) "캘린더 권한 허용됨" else "캘린더 권한 거부됨"
+        }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("캘린더", style = MaterialTheme.typography.titleSmall)
+                Text("오늘 일정을 질문 재료로 참고", style = MaterialTheme.typography.bodySmall)
+            }
+            if (!calGranted) {
+                Button(onClick = { calLauncher.launch(Manifest.permission.READ_CALENDAR) }) {
+                    Text("권한 요청")
+                }
+            } else {
+                Button(onClick = {
+                    scope.launch {
+                        calText = CalendarReader.formatForContext(CalendarReader.today(context))
+                            .ifBlank { "오늘 일정 없음" }
+                    }
+                }) { Text("오늘 일정") }
+            }
+        }
+        if (calText.isNotEmpty()) {
+            Text(calText, style = MaterialTheme.typography.bodySmall)
         }
         HorizontalDivider()
 

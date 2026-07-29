@@ -1,6 +1,7 @@
 package com.bedside.diary
 
 import android.content.Context
+import com.bedside.calendar.CalendarReader
 import com.bedside.location.LocationNow
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -17,9 +18,10 @@ object NowContext {
     private val dayFmt = DateTimeFormatter.ofPattern("EEEE", Locale.KOREAN)
     private val timeFmt = DateTimeFormatter.ofPattern("a h시 m분", Locale.KOREAN)
 
-    suspend fun build(context: Context, calendar: String = ""): String {
+    suspend fun build(context: Context): String {
         val now = LocalDateTime.now()
         val where = LocationNow.currentPlace(context)
+        val calendar = CalendarReader.formatForContext(CalendarReader.today(context))
         return render(now, where, calendar)
     }
 
