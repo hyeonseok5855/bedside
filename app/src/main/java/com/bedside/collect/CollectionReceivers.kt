@@ -41,5 +41,6 @@ class BootReceiver : BroadcastReceiver() {
         }
 
         CollectionScheduler.start(context)
+        com.bedside.nudge.NudgeScheduler.scheduleNext(context)
     }
 }

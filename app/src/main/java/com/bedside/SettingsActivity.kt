@@ -203,6 +203,22 @@ private fun SettingsScreen() {
                 },
             )
         }
+        // --- 틈틈이 알림 ---
+        var nudges by remember { mutableStateOf(com.bedside.nudge.NudgeScheduler.enabled(context)) }
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("틈틈이 말 걸기", style = MaterialTheme.typography.titleSmall)
+                Text("하루 중 상황에 맞춰 먼저 알림으로 물어봄", style = MaterialTheme.typography.bodySmall)
+            }
+            androidx.compose.material3.Switch(
+                checked = nudges,
+                onCheckedChange = { on ->
+                    nudges = on
+                    com.bedside.nudge.NudgeScheduler.setEnabled(context, on)
+                    status = if (on) "틈틈이 알림 켬" else "틈틈이 알림 끔"
+                },
+            )
+        }
         HorizontalDivider()
 
         // --- 캘린더 (오늘 일정) ---

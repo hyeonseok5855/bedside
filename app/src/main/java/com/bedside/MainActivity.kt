@@ -70,6 +70,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 틈틈이 알림 다음 슬롯 예약(결정 39). 켜져 있을 때만 실제로 잡힌다.
+        com.bedside.nudge.NudgeScheduler.scheduleNext(this)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(modifier = Modifier.fillMaxSize()) {

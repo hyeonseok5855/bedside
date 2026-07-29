@@ -98,6 +98,16 @@
             android:name=".collect.CollectionAlarmReceiver"
             android:exported="false" />
 
+        <!-- 틈틈이 알림(결정 39) -->
+        <receiver
+            android:name=".nudge.NudgeReceiver"
+            android:exported="false" />
+
+        <service
+            android:name=".nudge.NudgeService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <receiver
             android:name=".collect.BootReceiver"
             android:exported="true">

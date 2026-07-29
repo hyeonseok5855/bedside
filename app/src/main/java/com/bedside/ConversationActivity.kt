@@ -36,14 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.bedside.ai.AnthropicClient
 import com.bedside.ai.ChatMessage
-import com.bedside.ai.PersonaLoader
 import com.bedside.ai.PersonaMemory
 import com.bedside.ai.PromptLoader
 import com.bedside.ai.Task
 import com.bedside.data.Db
 import com.bedside.data.Message
-import com.bedside.diary.Continuity
-import com.bedside.diary.DayBriefing
+import com.bedside.diary.ConversationContext
 import com.bedside.diary.DiaryFiles
 import com.bedside.diary.DiaryPhotos
 import com.bedside.diary.NowContext
@@ -75,8 +73,6 @@ class ConversationActivity : ComponentActivity() {
     }
 }
 
-private const val KICKOFF = "라이징이 방금 대화를 열었습니다. '지금'(시각·요일·위치)과 브리핑을 보고, 지금이 하루의 어느 지점인지 헤아려 자연스럽게 말을 걸어 주세요. 질문은 하나만."
-
 @Composable
 private fun ConversationScreen() {
     val context = LocalContext.current
@@ -104,16 +100,7 @@ private fun ConversationScreen() {
 
     LaunchedEffect(Unit) {
         try {
-            val interviewer = PromptLoader.interviewer(context)
-            val persona = PersonaLoader.load(context)
-            val continuity = Continuity.build(context, today)
-            val briefing = DayBriefing.build(context, today)
-            systemPrompt = buildString {
-                append(interviewer)
-                if (persona.isNotBlank()) append("\n\n").append(persona)
-                if (continuity.isNotBlank()) append("\n\n").append(continuity)
-                append("\n\n# 오늘 브리핑\n").append(briefing)
-            }
+            systemPrompt = ConversationContext.base(context, today)
             // 이 세션이 처음이면 평문 로그에 시스템 프롬프트를 헤더로 박는다.
             TranscriptLog.startIfNew(context, dateStr, systemPrompt)
 
@@ -126,7 +113,7 @@ private fun ConversationScreen() {
                 busy = true
                 status = "첫 질문 받는 중..."
                 val sys = systemPrompt + "\n\n" + NowContext.build(context)
-                val first = AnthropicClient.complete(Task.CONVERSATION, sys, listOf(ChatMessage("user", KICKOFF)))
+                val first = AnthropicClient.complete(Task.CONVERSATION, sys, listOf(ChatMessage("user", ConversationContext.KICKOFF)))
                 persist("assistant", first)
                 turns = listOf(ChatMessage("assistant", first))
                 status = ""
@@ -153,7 +140,9 @@ private fun ConversationScreen() {
             persist("user", text)
             turns = turns + ChatMessage("user", text)
             try {
-                val apiMessages = listOf(ChatMessage("user", KICKOFF)) + turns
+                val apiMessages = ConversationContext.normalize(
+                    listOf(ChatMessage("user", ConversationContext.KICKOFF)) + turns,
+                )
                 val sys = systemPrompt + "\n\n" + NowContext.build(context)
                 val reply = AnthropicClient.complete(Task.CONVERSATION, sys, apiMessages)
                 persist("assistant", reply)
