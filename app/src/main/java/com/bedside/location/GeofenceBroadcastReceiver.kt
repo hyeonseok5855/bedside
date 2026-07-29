@@ -1,17 +1,9 @@
 package com.bedside.location
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import com.bedside.data.CollectedEvent
 import com.bedside.data.Db
 import com.google.android.gms.location.Geofence
@@ -21,8 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * 지오펜스 진입·이탈 수신. 지금은 로그 + 알림으로 확인만 한다.
- * (수집 DB 적립·이벤트화는 다음 단위. 지금은 "발화가 실제로 오는가" 검증용.)
+ * 지오펜스 진입·이탈 수신. 이벤트를 암호화 DB에 적립해 브리핑(질문 재료)으로 쓴다.
+ * 사용자 알림은 띄우지 않는다 — 도착·이탈은 조용히 기록만 한다(결정 45).
  */
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
@@ -40,18 +32,16 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         val places = event.triggeringGeofences
             ?.joinToString(", ") { GeofencePlaces.labelFor(it.requestId) }
             ?: return
-        val text = "$places $kind"
 
         val loc = event.triggeringLocation
-        Log.i(TAG, "지오펜스: $text @ ${loc?.latitude},${loc?.longitude}")
-        notify(context, text)
+        Log.i(TAG, "지오펜스: $places $kind @ ${loc?.latitude},${loc?.longitude}")
         persist(context, event, kind, places, loc?.latitude, loc?.longitude)
     }
 
     /** 브로드캐스트가 죽기 전에 암호화 DB에 이벤트를 적립한다. */
     private fun persist(
         context: Context,
-        event: com.google.android.gms.location.GeofencingEvent,
+        event: GeofencingEvent,
         kind: String,
         label: String,
         lat: Double?,
@@ -81,32 +71,7 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun notify(context: Context, text: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            return // 알림 권한 없으면 로그로만 남긴다
-        }
-        val manager = context.getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            manager.getNotificationChannel(CHANNEL_ID) == null
-        ) {
-            manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "위치 이동", NotificationManager.IMPORTANCE_DEFAULT),
-            )
-        }
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-            .setContentTitle("bedside")
-            .setContentText(text)
-            .setAutoCancel(true)
-            .build()
-        NotificationManagerCompat.from(context).notify(text.hashCode(), notification)
-    }
-
     private companion object {
         const val TAG = "bedside"
-        const val CHANNEL_ID = "geofence"
     }
 }
