@@ -31,6 +31,9 @@ exports.generateReply = onDocumentCreated(
     if (!snap) return;
     const msg = snap.data();
     if (!msg || msg.role !== "user") return; // 사용자 메시지에만 반응(assistant엔 무반응 → 루프 방지)
+    // 폰(android)이 쓴 user 메시지는 폰이 로컬에서 답을 만든다 → 여기선 무시(이중 생성 방지).
+    // 웹에서 온 것만 클라우드가 답한다.
+    if (msg.source === "android") return;
 
     const date = event.params.date;
     const sessionRef = db.doc(`sessions/${date}`);

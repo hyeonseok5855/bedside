@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,8 @@ import com.bedside.health.HealthConnectReader
 import com.bedside.log.TranscriptLog
 import com.bedside.media.MediaStorePhotoReader
 import com.bedside.media.PhotoCatalog
+import com.bedside.sync.FirebaseSync
+import com.google.firebase.firestore.ListenerRegistration
 import com.bedside.ui.MoodPicker
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -98,12 +101,14 @@ private fun ConversationScreen() {
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var loadingSuggestions by remember { mutableStateOf(false) }
 
-    suspend fun persist(role: String, text: String) {
+    suspend fun persist(role: String, text: String, push: Boolean = true) {
         Db.get(context).messages().insert(
             Message(sessionDate = dateStr, role = role, text = text, createdAt = System.currentTimeMillis()),
         )
         // 평문 대화 로그에도 남긴다(결정 36). 새 턴이 생기는 이 지점에서만.
         TranscriptLog.append(context, dateStr, role, text)
+        // 웹 동기화: 폰에서 생긴 턴만 Firestore에 미러(결정 52). 주입된 웹 턴은 push=false.
+        if (push) FirebaseSync.pushTurn(dateStr, role, text)
     }
 
     LaunchedEffect(Unit) {
@@ -139,6 +144,27 @@ private fun ConversationScreen() {
     // 새 말풍선이 생기거나 상태가 바뀌면 맨 아래로.
     LaunchedEffect(turns.size, busy) {
         scrollState.animateScrollTo(scrollState.maxValue)
+    }
+
+    // 웹 동기화(결정 52): 로그인 → 컨텍스트 push → 웹/함수가 쓴 메시지를 구독해 주입.
+    val listenerReg = remember { mutableStateOf<ListenerRegistration?>(null) }
+    DisposableEffect(Unit) { onDispose { listenerReg.value?.remove() } }
+    LaunchedEffect(systemPrompt) {
+        if (systemPrompt.isBlank()) return@LaunchedEffect
+        if (!FirebaseSync.ensureSignedIn()) return@LaunchedEffect
+        FirebaseSync.pushContext(dateStr, systemPrompt)
+        listenerReg.value?.remove()
+        listenerReg.value = FirebaseSync.listen(dateStr) { remotes ->
+            remotes.forEach { r ->
+                // 웹/함수가 쓴 것만 주입(폰이 쓴 android는 이미 로컬에 있음). 내용 중복 방지.
+                if ((r.source == "web" || r.source == "cloud") &&
+                    turns.none { it.role == r.role && it.text == r.text }
+                ) {
+                    turns = turns + ChatMessage(r.role, r.text)
+                    scope.launch { persist(r.role, r.text, push = false) }
+                }
+            }
+        }
     }
 
     // 지금 라이징이 답할 만한 후보를 뽑는다(문맥 기반). 상대(인터뷰어)의 말 뒤에서만.

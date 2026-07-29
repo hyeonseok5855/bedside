@@ -63,6 +63,10 @@ android {
         buildConfigField("String", "WORK_LNG", "\"${personal("work.lng")}\"")
 
         buildConfigField("String", "ANTHROPIC_API_KEY", "\"${secret("ANTHROPIC_API_KEY")}\"")
+
+        // 웹 동기화용 Firebase 계정(결정 52). secrets.properties에서만.
+        buildConfigField("String", "BEDSIDE_AUTH_EMAIL", "\"${secret("BEDSIDE_AUTH_EMAIL")}\"")
+        buildConfigField("String", "BEDSIDE_AUTH_PASSWORD", "\"${secret("BEDSIDE_AUTH_PASSWORD")}\"")
     }
 
     buildTypes {

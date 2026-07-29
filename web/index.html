@@ -52,9 +52,33 @@
         margin-top: 6px; background: #2a2733; color: #ece9f0; border: 1px solid #3a3644;
         border-radius: 10px; padding: 6px 12px; font: inherit; cursor: pointer;
       }
+      #login {
+        position: fixed; inset: 0; background: #121016; z-index: 10;
+        display: none; align-items: center; justify-content: center;
+      }
+      #login .box { display: flex; flex-direction: column; gap: 10px; width: min(300px, 80vw); }
+      #login h2 { margin: 0 0 4px; font-size: 20px; }
+      #login input {
+        background: #1b1922; color: #ece9f0; border: 1px solid #3a3644;
+        border-radius: 12px; padding: 12px 14px; font: inherit; font-size: 15px;
+      }
+      #login button {
+        background: #7c6bd0; color: #fff; border: none; border-radius: 12px;
+        padding: 12px; font: inherit; font-weight: 600; cursor: pointer;
+      }
+      #login .msg { color: #e08a8a; font-size: 13px; min-height: 16px; }
     </style>
   </head>
   <body>
+    <div id="login">
+      <form class="box" id="loginForm">
+        <h2>bedside</h2>
+        <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password" />
+        <button type="submit">로그인</button>
+        <div class="msg" id="loginMsg"></div>
+      </form>
+    </div>
+
     <header>
       <h1>bedside</h1>
       <span class="date" id="date"></span>

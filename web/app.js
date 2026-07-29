@@ -3,7 +3,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged,
+  getAuth, signInWithEmailAndPassword, onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, setDoc, getDoc, serverTimestamp,
@@ -88,10 +88,32 @@ document.getElementById("saveCtx").addEventListener("click", async () => {
   } catch (e) { setStatus("저장 실패: " + e.message); }
 });
 
+// --- 로그인 ---
+// 이메일은 고정, 비밀번호만 입력받는다(계정으로 규칙 잠금, 결정 52). 세션은 브라우저에 유지.
+const EMAIL = "bedside@app.com";
+const loginEl = document.getElementById("login");
+const pwEl = document.getElementById("pw");
+const loginMsg = document.getElementById("loginMsg");
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginMsg.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, EMAIL, pwEl.value);
+  } catch (err) {
+    loginMsg.textContent = "로그인 실패: " + err.message;
+  }
+});
+
 // --- 시작 ---
-signInAnonymously(auth).catch((e) => setStatus("로그인 실패: " + e.message));
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
+  if (!user || user.email !== EMAIL) {
+    loginEl.style.display = "flex";
+    setStatus("로그인 필요");
+    pwEl.focus();
+    return;
+  }
+  loginEl.style.display = "none";
   setStatus("");
   sendBtn.disabled = false;
 
